@@ -11,13 +11,13 @@ import { NuqsAdapter } from 'nuqs/adapters/next/app';
 import '../styles/globals.css';
 
 const META_THEME_COLORS = {
-  light: '#ffffff',
-  dark: '#09090b'
+  light: '#111111',
+  dark: '#111111'
 };
 
 export const metadata: Metadata = {
-  title: 'Next Shadcn',
-  description: 'Basic dashboard with Next.js and Shadcn'
+  title: 'BrokerOS',
+  description: 'A quiet real estate brokerage operating system.'
 };
 
 export const viewport: Viewport = {
@@ -56,8 +56,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <NuqsAdapter>
           <ThemeProvider
             attribute='class'
-            defaultTheme='system'
-            enableSystem
+            defaultTheme='dark'
+            enableSystem={false}
             disableTransitionOnChange
             enableColorScheme
           >

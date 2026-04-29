@@ -27,7 +27,7 @@ import {
 import { UserAvatarProfile } from '@/components/user-avatar-profile';
 import { navGroups } from '@/config/nav-config';
 import { useMediaQuery } from '@/hooks/use-media-query';
-import { useOrganization, useUser } from '@clerk/nextjs';
+import { useUser } from '@clerk/nextjs';
 import { useFilteredNavGroups } from '@/hooks/use-nav';
 import { SignOutButton } from '@clerk/nextjs';
 import Link from 'next/link';
@@ -40,7 +40,6 @@ export default function AppSidebar() {
   const pathname = usePathname();
   const { isOpen } = useMediaQuery();
   const { user } = useUser();
-  const { organization } = useOrganization();
   const router = useRouter();
   const filteredGroups = useFilteredNavGroups(navGroups);
 
@@ -48,16 +47,22 @@ export default function AppSidebar() {
     // Side effects based on sidebar state changes
   }, [isOpen]);
 
+  const isActive = (url: string) => pathname === url || pathname.startsWith(`${url}/`);
+
   return (
-    <Sidebar collapsible='icon'>
-      <SidebarHeader className='group-data-[collapsible=icon]:pt-4'>
+    <Sidebar collapsible='icon' className='border-sidebar-border bg-sidebar'>
+      <SidebarHeader className='border-sidebar-border border-b px-2 py-3 group-data-[collapsible=icon]:pt-3'>
         <OrgSwitcher />
       </SidebarHeader>
-      <SidebarContent className='overflow-x-hidden'>
+      <SidebarContent className='overflow-x-hidden px-2 py-4'>
         {filteredGroups.map((group) => (
-          <SidebarGroup key={group.label || 'ungrouped'} className='py-0'>
-            {group.label && <SidebarGroupLabel>{group.label}</SidebarGroupLabel>}
-            <SidebarMenu>
+          <SidebarGroup key={group.label || 'ungrouped'} className='px-0 py-2'>
+            {group.label && (
+              <SidebarGroupLabel className='text-sidebar-foreground/40 px-2 text-[0.68rem] font-medium tracking-[0.18em] uppercase'>
+                {group.label}
+              </SidebarGroupLabel>
+            )}
+            <SidebarMenu className='gap-1.5'>
               {group.items.map((item) => {
                 const Icon = item.icon ? Icons[item.icon] : Icons.logo;
                 return item?.items && item?.items?.length > 0 ? (
@@ -69,7 +74,11 @@ export default function AppSidebar() {
                   >
                     <SidebarMenuItem>
                       <CollapsibleTrigger asChild>
-                        <SidebarMenuButton tooltip={item.title} isActive={pathname === item.url}>
+                        <SidebarMenuButton
+                          tooltip={item.title}
+                          isActive={isActive(item.url)}
+                          className='text-sidebar-foreground/65 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground data-[active=true]:bg-sidebar-accent/70 data-[active=true]:text-sidebar-foreground data-[active=true]:shadow-none'
+                        >
                           {item.icon && <Icon />}
                           <span>{item.title}</span>
                           <Icons.chevronRight className='ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90' />
@@ -79,7 +88,7 @@ export default function AppSidebar() {
                         <SidebarMenuSub>
                           {item.items?.map((subItem) => (
                             <SidebarMenuSubItem key={subItem.title}>
-                              <SidebarMenuSubButton asChild isActive={pathname === subItem.url}>
+                              <SidebarMenuSubButton asChild isActive={isActive(subItem.url)}>
                                 <Link href={subItem.url}>
                                   <span>{subItem.title}</span>
                                 </Link>
@@ -95,7 +104,8 @@ export default function AppSidebar() {
                     <SidebarMenuButton
                       asChild
                       tooltip={item.title}
-                      isActive={pathname === item.url}
+                      isActive={isActive(item.url)}
+                      className='text-sidebar-foreground/65 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground data-[active=true]:bg-sidebar-accent/70 data-[active=true]:text-sidebar-foreground data-[active=true]:shadow-none'
                     >
                       <Link href={item.url}>
                         <Icon />
@@ -140,19 +150,13 @@ export default function AppSidebar() {
                 <DropdownMenuSeparator />
 
                 <DropdownMenuGroup>
-                  <DropdownMenuItem onClick={() => router.push('/dashboard/profile')}>
-                    <Icons.account className='mr-2 h-4 w-4' />
-                    Profile
+                  <DropdownMenuItem onClick={() => router.push('/activity')}>
+                    <Icons.clock className='mr-2 h-4 w-4' />
+                    Activity
                   </DropdownMenuItem>
-                  {organization && (
-                    <DropdownMenuItem onClick={() => router.push('/dashboard/billing')}>
-                      <Icons.creditCard className='mr-2 h-4 w-4' />
-                      Billing
-                    </DropdownMenuItem>
-                  )}
-                  <DropdownMenuItem onClick={() => router.push('/dashboard/notifications')}>
-                    <Icons.notification className='mr-2 h-4 w-4' />
-                    Notifications
+                  <DropdownMenuItem onClick={() => router.push('/settings')}>
+                    <Icons.settings className='mr-2 h-4 w-4' />
+                    Settings
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />

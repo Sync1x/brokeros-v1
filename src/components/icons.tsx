@@ -1,4 +1,15 @@
 import {
+  Activity as LucideActivity,
+  FileText as LucideFileText,
+  FolderOpen as LucideFolderOpen,
+  GitPullRequestArrow,
+  Home as LucideHome,
+  Inbox as LucideInbox,
+  LayoutDashboard,
+  Settings as LucideSettings,
+  UsersRound
+} from 'lucide-react';
+import {
   IconAdjustmentsHorizontal,
   IconAlertCircle,
   IconAlertTriangle,
@@ -35,7 +46,6 @@ import {
   IconExternalLink,
   IconEyeOff,
   IconFile,
-  IconFileText,
   IconFileTypePdf,
   IconFileTypeDoc,
   IconFileTypeXls,
@@ -43,9 +53,9 @@ import {
   IconFolder,
   IconGripVertical,
   IconHelpCircle,
+  IconHomeSearch,
   IconInfoCircle,
   IconItalic,
-  IconLayoutDashboard,
   IconLayoutKanban,
   IconLayoutSidebar,
   IconLoader2,
@@ -62,12 +72,10 @@ import {
   IconPhoto,
   IconPizza,
   IconPlus,
-  IconProps,
   IconRosetteDiscountCheck,
   IconSearch,
   IconSelector,
   IconSend,
-  IconSettings,
   IconShare,
   IconSlash,
   IconSparkles,
@@ -90,10 +98,11 @@ import {
   IconX
 } from '@tabler/icons-react';
 
-export type Icon = React.ComponentType<IconProps>;
+export type Icon = React.ElementType<{ className?: string }>;
 
 export const Icons = {
   // General
+  activity: LucideActivity,
   alertCircle: IconAlertCircle,
   warning: IconAlertTriangle,
   arrowRight: IconArrowRight,
@@ -110,7 +119,7 @@ export const Icons = {
   info: IconInfoCircle,
   spinner: IconLoader2,
   search: IconSearch,
-  settings: IconSettings,
+  settings: LucideSettings,
   trash: IconTrash,
 
   // Navigation / Chevrons
@@ -124,12 +133,15 @@ export const Icons = {
   chevronsUpDown: IconSelector,
 
   // Layout
-  dashboard: IconLayoutDashboard,
+  dashboard: LayoutDashboard,
   kanban: IconLayoutKanban,
   panelLeft: IconLayoutSidebar,
+  home: LucideHome,
+  homeSearch: IconHomeSearch,
+  match: GitPullRequestArrow,
 
   // User
-  user: IconUser,
+  user: UsersRound,
   user2: IconUserCircle,
   account: IconUserCircle,
   profile: IconUser,
@@ -144,6 +156,7 @@ export const Icons = {
 
   // Communication
   chat: IconMessage,
+  inbox: LucideInbox,
   notification: IconBell,
   phone: IconPhone,
   video: IconVideo,
@@ -152,11 +165,12 @@ export const Icons = {
 
   // Files
   page: IconFile,
-  post: IconFileText,
+  post: LucideFileText,
   fileTypePdf: IconFileTypePdf,
   fileTypeDoc: IconFileTypeDoc,
   fileTypeXls: IconFileTypeXls,
   fileZip: IconFileZip,
+  folderOpen: LucideFolderOpen,
   media: IconPhoto,
   music: IconMusic,
 
