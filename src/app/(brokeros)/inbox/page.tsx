@@ -24,11 +24,14 @@ export default function InboxPage() {
       pageTitle='Inbox'
       pageDescription='Priority communication tied to leads, listings, and active match work.'
     >
-      <div className='bg-card/90 divide-y border'>
+      <div className='bg-background divide-y border-y'>
         {messages.map((message) => (
-          <div key={message.subject} className='grid gap-2 p-3 md:grid-cols-[180px_1fr_100px]'>
+          <div
+            key={message.subject}
+            className='grid gap-2 px-2.5 py-2 transition-colors hover:bg-muted/20 md:grid-cols-[180px_1fr_100px]'
+          >
             <p className='font-mono text-xs font-medium uppercase'>{message.from}</p>
-            <p className='text-muted-foreground'>{message.subject}</p>
+            <p className='text-muted-foreground text-xs'>{message.subject}</p>
             <p className='text-muted-foreground text-right font-mono text-xs uppercase'>
               {message.time}
             </p>

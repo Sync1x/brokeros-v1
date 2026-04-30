@@ -16,7 +16,7 @@ interface LeadMemoryTableProps {
 
 export function LeadMemoryTable({ leads }: LeadMemoryTableProps) {
   return (
-    <div className='bg-card/90 overflow-hidden border'>
+    <div className='bg-background overflow-hidden border-y'>
       <Table>
         <TableHeader>
           <TableRow>
@@ -42,7 +42,7 @@ export function LeadMemoryTable({ leads }: LeadMemoryTableProps) {
                   {lead.desiredArea}
                 </p>
               </TableCell>
-              <TableCell className='max-w-[260px] text-sm'>{lead.intent}</TableCell>
+              <TableCell className='max-w-[260px] text-xs'>{lead.intent}</TableCell>
               <TableCell className='font-mono text-xs'>{lead.budget}</TableCell>
               <TableCell>
                 <Badge variant='outline' className='font-mono text-[0.65rem] uppercase'>

@@ -8,7 +8,7 @@ export default function TemplatesPage() {
       pageTitle='Templates'
       pageDescription='Reusable language and workflows for high-trust brokerage moments.'
     >
-      <div className='grid gap-4 md:grid-cols-2 xl:grid-cols-3'>
+      <div className='grid border-t border-l md:grid-cols-2 xl:grid-cols-3'>
         {brokerTemplates.map((template) => (
           <TemplateCard key={template.id} template={template} />
         ))}

@@ -7,10 +7,10 @@ interface ActivityFeedProps {
 
 export function ActivityFeed({ items }: ActivityFeedProps) {
   return (
-    <div className='bg-card/90 border p-4'>
-      <div className='flex flex-col gap-4'>
+    <div className='bg-background border-y'>
+      <div className='divide-y'>
         {items.map((item) => (
-          <div key={item.id} className='flex gap-4'>
+          <div key={item.id} className='flex gap-3 px-2.5 py-2 transition-colors hover:bg-muted/20'>
             <div
               className={cn(
                 'mt-1 size-2 bg-muted-foreground',
@@ -19,7 +19,7 @@ export function ActivityFeed({ items }: ActivityFeedProps) {
               )}
             />
             <div className='min-w-0 flex-1'>
-              <p className='text-sm'>
+              <p className='text-xs'>
                 <span className='font-medium'>{item.actor}</span> {item.action}{' '}
                 <span className='font-medium'>{item.subject}</span>
               </p>

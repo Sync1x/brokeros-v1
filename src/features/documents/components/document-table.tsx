@@ -15,7 +15,7 @@ interface DocumentTableProps {
 
 export function DocumentTable({ documents }: DocumentTableProps) {
   return (
-    <div className='bg-card/80 overflow-hidden rounded-2xl border'>
+    <div className='bg-background overflow-hidden border-y'>
       <Table>
         <TableHeader>
           <TableRow>
@@ -29,13 +29,17 @@ export function DocumentTable({ documents }: DocumentTableProps) {
         <TableBody>
           {documents.map((document) => (
             <TableRow key={document.id}>
-              <TableCell className='font-medium'>{document.title}</TableCell>
-              <TableCell>{document.client}</TableCell>
-              <TableCell>{document.type}</TableCell>
-              <TableCell>
-                <Badge variant='outline'>{document.status}</Badge>
+              <TableCell className='font-mono text-xs font-medium uppercase'>
+                {document.title}
               </TableCell>
-              <TableCell className='text-muted-foreground text-right'>
+              <TableCell className='text-xs'>{document.client}</TableCell>
+              <TableCell className='text-xs'>{document.type}</TableCell>
+              <TableCell>
+                <Badge variant='outline' className='font-mono text-[0.65rem] uppercase'>
+                  {document.status}
+                </Badge>
+              </TableCell>
+              <TableCell className='text-muted-foreground text-right font-mono text-xs'>
                 {document.updatedAt}
               </TableCell>
             </TableRow>

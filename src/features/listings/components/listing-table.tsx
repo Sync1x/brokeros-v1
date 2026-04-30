@@ -16,7 +16,7 @@ interface ListingTableProps {
 
 export function ListingTable({ listings }: ListingTableProps) {
   return (
-    <div className='bg-card/90 overflow-hidden border'>
+    <div className='bg-background overflow-hidden border-y'>
       <Table>
         <TableHeader>
           <TableRow>

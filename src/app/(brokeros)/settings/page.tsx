@@ -8,11 +8,11 @@ export default function SettingsPage() {
       pageTitle='Settings'
       pageDescription='BrokerOS configuration, currently backed by local mock state.'
     >
-      <div className='grid gap-3 md:grid-cols-2'>
+      <div className='grid border-t border-l md:grid-cols-2'>
         {settings.map((setting) => (
-          <div key={setting} className='bg-card/90 border p-4'>
+          <div key={setting} className='bg-background border-r border-b p-2.5 hover:bg-muted/20'>
             <h2 className='font-mono text-xs font-medium uppercase tracking-[0.14em]'>{setting}</h2>
-            <p className='text-muted-foreground mt-2 text-sm'>Mock configuration placeholder.</p>
+            <p className='text-muted-foreground mt-1 text-xs'>Mock configuration placeholder.</p>
           </div>
         ))}
       </div>
