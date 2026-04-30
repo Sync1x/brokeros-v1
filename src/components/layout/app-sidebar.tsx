@@ -129,13 +129,13 @@ export default function AppSidebar() {
                   className='data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground'
                 >
                   {user && (
-                    <UserAvatarProfile className='h-8 w-8 rounded-lg' showInfo user={user} />
+                    <UserAvatarProfile className='h-8 w-8 rounded-none' showInfo user={user} />
                   )}
                   <Icons.chevronsDown className='ml-auto size-4' />
                 </SidebarMenuButton>
               </DropdownMenuTrigger>
               <DropdownMenuContent
-                className='w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg'
+                className='w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-none'
                 side='bottom'
                 align='end'
                 sideOffset={4}
@@ -143,7 +143,7 @@ export default function AppSidebar() {
                 <DropdownMenuLabel className='p-0 font-normal'>
                   <div className='px-1 py-1.5'>
                     {user && (
-                      <UserAvatarProfile className='h-8 w-8 rounded-lg' showInfo user={user} />
+                      <UserAvatarProfile className='h-8 w-8 rounded-none' showInfo user={user} />
                     )}
                   </div>
                 </DropdownMenuLabel>

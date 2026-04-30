@@ -23,12 +23,12 @@ const ResultItem = React.forwardRef(
     return (
       <div
         ref={ref}
-        className={`relative z-10 flex cursor-pointer items-center justify-between px-4 py-3`}
+        className='relative z-10 flex cursor-pointer items-center justify-between px-4 py-2.5'
       >
         {active && (
           <div
             id='kbar-result-item'
-            className='border-primary bg-accent/50 absolute inset-0 z-[-1]! border-l-4'
+            className='border-primary bg-accent/60 absolute inset-0 z-[-1]! border-l-2'
           ></div>
         )}
         <div className='relative z-10 flex items-center gap-2'>
@@ -42,10 +42,10 @@ const ResultItem = React.forwardRef(
                     <span className='mr-2'>&rsaquo;</span>
                   </React.Fragment>
                 ))}
-              <span>{action.name}</span>
+              <span className='font-mono text-xs uppercase'>{action.name}</span>
             </div>
             {action.subtitle && (
-              <span className='text-muted-foreground text-sm'>{action.subtitle}</span>
+              <span className='text-muted-foreground text-xs'>{action.subtitle}</span>
             )}
           </div>
         </div>
@@ -54,7 +54,7 @@ const ResultItem = React.forwardRef(
             {action.shortcut.map((sc, i) => (
               <kbd
                 key={sc + i}
-                className='bg-muted flex h-5 items-center gap-1 rounded-md border px-1.5 text-[10px] font-medium'
+                className='bg-muted flex h-5 items-center gap-1 border px-1.5 font-mono text-[10px] font-medium uppercase'
               >
                 {sc}
               </kbd>

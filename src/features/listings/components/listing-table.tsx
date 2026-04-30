@@ -16,7 +16,7 @@ interface ListingTableProps {
 
 export function ListingTable({ listings }: ListingTableProps) {
   return (
-    <div className='bg-card/80 overflow-hidden rounded-2xl border'>
+    <div className='bg-card/90 overflow-hidden border'>
       <Table>
         <TableHeader>
           <TableRow>
@@ -31,19 +31,26 @@ export function ListingTable({ listings }: ListingTableProps) {
           {listings.map((listing) => (
             <TableRow key={listing.id}>
               <TableCell>
-                <Link href={`/listings/${listing.id}`} className='font-medium hover:text-primary'>
+                <Link
+                  href={`/listings/${listing.id}`}
+                  className='font-mono text-xs font-medium uppercase hover:text-primary'
+                >
                   {listing.address}
                 </Link>
-                <p className='text-muted-foreground mt-1 text-xs'>{listing.neighborhood}</p>
+                <p className='text-muted-foreground mt-1 font-mono text-[0.68rem] uppercase'>
+                  {listing.neighborhood}
+                </p>
               </TableCell>
-              <TableCell>{listing.price}</TableCell>
-              <TableCell>
+              <TableCell className='font-mono text-xs'>{listing.price}</TableCell>
+              <TableCell className='text-xs'>
                 {listing.beds} bd / {listing.baths} ba / {listing.sqft} sqft
               </TableCell>
               <TableCell>
-                <Badge variant='outline'>{listing.status}</Badge>
+                <Badge variant='outline' className='font-mono text-[0.65rem] uppercase'>
+                  {listing.status}
+                </Badge>
               </TableCell>
-              <TableCell>{listing.agent}</TableCell>
+              <TableCell className='text-xs'>{listing.agent}</TableCell>
             </TableRow>
           ))}
         </TableBody>

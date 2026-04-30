@@ -8,10 +8,10 @@ export default function LeadsPage() {
   return (
     <PageContainer
       pageTitle='Leads'
-      pageDescription='Client memory, intent, preferences, and next best actions.'
+      pageDescription='Client intent, qualification state, and matching readiness.'
     >
-      <div className='space-y-6'>
-        <div className='grid gap-4 md:grid-cols-3'>
+      <div className='flex flex-col gap-4'>
+        <div className='grid gap-3 md:grid-cols-3'>
           <BrokerMetricCard
             label='Hot Leads'
             value='12'

@@ -1,16 +1,17 @@
 [data-theme='brokeros'] {
   color-scheme: dark;
 
-  --app-background: #0b0d10;
-  --surface: #111418;
-  --surface-elevated: #171b21;
-  --text-primary: #f5f5f2;
-  --text-secondary: #a7adb7;
-  --text-muted: #6f7682;
-  --accent-gold: #c8a75d;
-  --success: #7ca982;
-  --warning: #d9a441;
-  --danger: #c76868;
+  --app-background: #070707;
+  --surface: #0d0d0c;
+  --surface-elevated: #141413;
+  --text-primary: #e7e4dd;
+  --text-secondary: #a9a49b;
+  --text-muted: #80807f;
+  --command-red: #5c0100;
+  --command-red-bright: #8f1110;
+  --success: #75806d;
+  --warning: #8b7c62;
+  --danger: #8f1110;
 
   --background: var(--app-background);
   --foreground: var(--text-primary);
@@ -18,8 +19,8 @@
   --card-foreground: var(--text-primary);
   --popover: var(--surface-elevated);
   --popover-foreground: var(--text-primary);
-  --primary: var(--accent-gold);
-  --primary-foreground: var(--app-background);
+  --primary: var(--command-red);
+  --primary-foreground: var(--text-primary);
   --secondary: var(--surface-elevated);
   --secondary-foreground: var(--text-primary);
   --muted: var(--surface-elevated);
@@ -28,40 +29,40 @@
   --accent-foreground: var(--text-primary);
   --destructive: var(--danger);
   --destructive-foreground: var(--text-primary);
-  --border: #252a32;
-  --input: #252a32;
-  --ring: var(--accent-gold);
-  --chart-1: var(--accent-gold);
+  --border: #242421;
+  --input: #2b2b28;
+  --ring: var(--text-muted);
+  --chart-1: var(--command-red-bright);
   --chart-2: var(--success);
   --chart-3: var(--warning);
   --chart-4: var(--danger);
   --chart-5: var(--text-secondary);
-  --sidebar: #0b0d10;
+  --sidebar: #090908;
   --sidebar-foreground: var(--text-secondary);
-  --sidebar-primary: var(--accent-gold);
-  --sidebar-primary-foreground: var(--app-background);
-  --sidebar-accent: #171b21;
+  --sidebar-primary: var(--command-red);
+  --sidebar-primary-foreground: var(--text-primary);
+  --sidebar-accent: #151513;
   --sidebar-accent-foreground: var(--text-primary);
-  --sidebar-border: #252a32;
-  --sidebar-ring: var(--accent-gold);
+  --sidebar-border: #242421;
+  --sidebar-ring: var(--text-muted);
   --font-sans: Geist, sans-serif;
   --font-serif: Georgia, serif;
   --font-mono: Geist Mono, monospace;
-  --radius: 1rem;
+  --radius: 0rem;
   --shadow-x: 0px;
-  --shadow-y: 18px;
-  --shadow-blur: 48px;
-  --shadow-spread: -36px;
-  --shadow-opacity: 0.44;
+  --shadow-y: 0px;
+  --shadow-blur: 0px;
+  --shadow-spread: 0px;
+  --shadow-opacity: 0;
   --shadow-color: hsl(0 0% 0%);
-  --shadow-2xs: 0px 1px 2px 0px hsl(0 0% 0% / 0.18);
-  --shadow-xs: 0px 2px 8px -6px hsl(0 0% 0% / 0.24);
-  --shadow-sm: 0px 10px 28px -24px hsl(0 0% 0% / 0.32);
-  --shadow: 0px 18px 48px -36px hsl(0 0% 0% / 0.44);
-  --shadow-md: 0px 22px 56px -38px hsl(0 0% 0% / 0.5);
-  --shadow-lg: 0px 28px 70px -42px hsl(0 0% 0% / 0.56);
-  --shadow-xl: 0px 34px 86px -46px hsl(0 0% 0% / 0.62);
-  --shadow-2xl: 0px 40px 100px -50px hsl(0 0% 0% / 0.68);
+  --shadow-2xs: none;
+  --shadow-xs: none;
+  --shadow-sm: none;
+  --shadow: none;
+  --shadow-md: none;
+  --shadow-lg: none;
+  --shadow-xl: none;
+  --shadow-2xl: none;
 }
 
 [data-theme='brokeros'] {
@@ -102,17 +103,19 @@
     --color-brokeros-surface-elevated: var(--surface-elevated);
     --color-brokeros-text-secondary: var(--text-secondary);
     --color-brokeros-text-muted: var(--text-muted);
+    --color-brokeros-command-red: var(--command-red);
+    --color-brokeros-command-red-bright: var(--command-red-bright);
     --color-brokeros-success: var(--success);
     --color-brokeros-warning: var(--warning);
     --color-brokeros-danger: var(--danger);
     --font-sans: var(--font-sans);
     --font-mono: var(--font-mono);
     --font-serif: var(--font-serif);
-    --radius-sm: calc(var(--radius) - 8px);
-    --radius-md: calc(var(--radius) - 6px);
-    --radius-lg: calc(var(--radius) - 4px);
-    --radius-xl: calc(var(--radius) - 2px);
-    --radius-2xl: var(--radius);
+    --radius-sm: 0rem;
+    --radius-md: 0rem;
+    --radius-lg: 0rem;
+    --radius-xl: 0rem;
+    --radius-2xl: 0rem;
     --shadow-2xs: var(--shadow-2xs);
     --shadow-xs: var(--shadow-xs);
     --shadow-sm: var(--shadow-sm);
@@ -122,4 +125,13 @@
     --shadow-xl: var(--shadow-xl);
     --shadow-2xl: var(--shadow-2xl);
   }
+}
+
+[data-theme='brokeros'] body {
+  background: var(--app-background);
+}
+
+[data-theme='brokeros'] ::selection {
+  background: color-mix(in srgb, var(--command-red-bright) 55%, transparent);
+  color: var(--text-primary);
 }

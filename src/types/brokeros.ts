@@ -1,10 +1,4 @@
-export type LeadStage =
-  | 'New'
-  | 'Nurture'
-  | 'Touring'
-  | 'Offer'
-  | 'Under Contract'
-  | 'Closed';
+export type LeadStage = 'New' | 'Nurture' | 'Touring' | 'Offer' | 'Under Contract' | 'Closed';
 
 export type LeadTemperature = 'Hot' | 'Warm' | 'Cool';
 

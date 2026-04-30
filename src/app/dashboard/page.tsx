@@ -21,10 +21,10 @@ export default function DashboardPage() {
   return (
     <PageContainer
       pageTitle='BrokerOS'
-      pageDescription='A quiet command center for leads, inventory, matches, and agent oversight.'
+      pageDescription='Lead-to-listing operations, active match signals, and agent oversight.'
     >
-      <div className='space-y-6'>
-        <div className='grid gap-4 md:grid-cols-2 xl:grid-cols-4'>
+      <div className='flex flex-col gap-4'>
+        <div className='grid gap-3 md:grid-cols-2 xl:grid-cols-4'>
           <BrokerMetricCard
             label='Private Pipeline'
             value='$57.2M'
@@ -52,7 +52,7 @@ export default function DashboardPage() {
           />
         </div>
 
-        <div className='grid gap-6 xl:grid-cols-[1.1fr_0.9fr]'>
+        <div className='grid gap-4 xl:grid-cols-[1.1fr_0.9fr]'>
           <SectionPanel title='Highest Confidence Match' eyebrow='Today'>
             <BrokerMatchCard match={firstMatch} lead={firstLead} listing={firstListing} />
           </SectionPanel>

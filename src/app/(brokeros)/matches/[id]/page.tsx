@@ -19,22 +19,22 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
       pageTitle='Match Brief'
       pageDescription={`${lead.name} matched to ${listing.address}.`}
     >
-      <div className='bg-card/80 rounded-2xl border p-6'>
+      <div className='bg-card/90 border p-4'>
         <div className='flex items-start justify-between gap-4'>
           <div>
-            <p className='text-muted-foreground text-sm'>{lead.name}</p>
-            <h2 className='mt-2 text-2xl font-semibold'>{listing.address}</h2>
+            <p className='text-muted-foreground font-mono text-[0.68rem] uppercase'>{lead.name}</p>
+            <h2 className='mt-2 font-mono text-lg font-semibold uppercase'>{listing.address}</h2>
           </div>
-          <Badge variant='outline' className='border-primary/30 text-primary'>
+          <Badge variant='outline' className='border-primary/50 font-mono text-primary'>
             {match.score}% confidence
           </Badge>
         </div>
-        <p className='text-muted-foreground mt-6 max-w-3xl leading-7'>{match.rationale}</p>
-        <div className='mt-6 rounded-xl border p-4'>
-          <p className='text-muted-foreground text-xs font-medium tracking-[0.18em] uppercase'>
+        <p className='text-muted-foreground mt-4 max-w-3xl text-sm leading-6'>{match.rationale}</p>
+        <div className='mt-4 border p-3'>
+          <p className='text-muted-foreground font-mono text-[0.65rem] font-medium tracking-[0.18em] uppercase'>
             Next Step
           </p>
-          <p className='mt-2 font-medium'>{match.nextStep}</p>
+          <p className='mt-2 text-sm font-medium'>{match.nextStep}</p>
         </div>
       </div>
     </PageContainer>

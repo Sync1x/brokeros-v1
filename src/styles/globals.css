@@ -31,7 +31,7 @@
 
   ::-webkit-scrollbar-thumb {
     background-color: var(--border);
-    border-radius: 9999px;
+    border-radius: var(--radius);
     border: 2px solid transparent;
     background-clip: content-box;
   }
@@ -41,7 +41,7 @@
   }
 }
 
-/* View Transition Wave Effect */
+/* View Transition Effect */
 ::view-transition-old(root),
 ::view-transition-new(root) {
   animation: none;
@@ -58,6 +58,11 @@
   z-index: 1;
 }
 
+:root[data-theme]:not([data-theme='brokeros'])::view-transition-new(root) {
+  /* Apply the reveal animation */
+  animation: reveal 0.4s ease-in-out forwards;
+}
+
 @keyframes reveal {
   from {
     /* Use CSS variables for the origin, defaulting to center if not set */
@@ -71,7 +76,6 @@
   }
 }
 
-::view-transition-new(root) {
-  /* Apply the reveal animation */
-  animation: reveal 0.4s ease-in-out forwards;
+:root[data-theme='brokeros']::view-transition-new(root) {
+  animation: none;
 }

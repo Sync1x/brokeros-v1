@@ -15,41 +15,51 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
 
   return (
     <PageContainer pageTitle={listing.address} pageDescription={listing.signal}>
-      <div className='grid gap-6 xl:grid-cols-[0.9fr_1.1fr]'>
-        <div className='bg-card/80 rounded-2xl border p-6'>
+      <div className='grid gap-4 xl:grid-cols-[0.9fr_1.1fr]'>
+        <div className='bg-card/90 border p-4'>
           <div className='flex items-start justify-between gap-4'>
             <div>
-              <p className='text-muted-foreground text-sm'>{listing.neighborhood}</p>
-              <p className='mt-3 text-3xl font-semibold'>{listing.price}</p>
+              <p className='text-muted-foreground font-mono text-[0.68rem] uppercase'>
+                {listing.neighborhood}
+              </p>
+              <p className='mt-2 font-mono text-2xl font-semibold'>{listing.price}</p>
             </div>
-            <Badge variant='outline'>{listing.status}</Badge>
+            <Badge variant='outline' className='font-mono text-[0.65rem] uppercase'>
+              {listing.status}
+            </Badge>
           </div>
-          <dl className='mt-6 grid grid-cols-3 gap-3 text-sm'>
-            <div className='rounded-xl border p-3'>
-              <dt className='text-muted-foreground'>Beds</dt>
-              <dd className='mt-1 font-medium'>{listing.beds}</dd>
+          <dl className='mt-4 grid grid-cols-3 gap-2 text-sm'>
+            <div className='border p-3'>
+              <dt className='text-muted-foreground font-mono text-[0.65rem] uppercase'>Beds</dt>
+              <dd className='mt-1 font-mono text-xs font-medium'>{listing.beds}</dd>
             </div>
-            <div className='rounded-xl border p-3'>
-              <dt className='text-muted-foreground'>Baths</dt>
-              <dd className='mt-1 font-medium'>{listing.baths}</dd>
+            <div className='border p-3'>
+              <dt className='text-muted-foreground font-mono text-[0.65rem] uppercase'>Baths</dt>
+              <dd className='mt-1 font-mono text-xs font-medium'>{listing.baths}</dd>
             </div>
-            <div className='rounded-xl border p-3'>
-              <dt className='text-muted-foreground'>Sqft</dt>
-              <dd className='mt-1 font-medium'>{listing.sqft}</dd>
+            <div className='border p-3'>
+              <dt className='text-muted-foreground font-mono text-[0.65rem] uppercase'>Sqft</dt>
+              <dd className='mt-1 font-mono text-xs font-medium'>{listing.sqft}</dd>
             </div>
           </dl>
         </div>
 
-        <section className='bg-card/80 rounded-2xl border p-6'>
-          <h2 className='font-semibold'>Matched Demand</h2>
-          <div className='mt-4 space-y-3'>
+        <section className='bg-card/90 border p-4'>
+          <h2 className='font-mono text-xs font-semibold uppercase tracking-[0.16em]'>
+            Matched Demand
+          </h2>
+          <div className='mt-3 flex flex-col gap-2'>
             {matches.map((match) => (
-              <div key={match.id} className='rounded-xl border p-4'>
+              <div key={match.id} className='border p-3'>
                 <div className='flex items-center justify-between gap-4'>
                   <p className='text-sm'>{match.rationale}</p>
-                  <Badge variant='outline'>{match.score}%</Badge>
+                  <Badge variant='outline' className='font-mono'>
+                    {match.score}%
+                  </Badge>
                 </div>
-                <p className='text-muted-foreground mt-3 text-xs'>{match.nextStep}</p>
+                <p className='text-muted-foreground mt-3 font-mono text-[0.68rem] uppercase'>
+                  {match.nextStep}
+                </p>
               </div>
             ))}
           </div>

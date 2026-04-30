@@ -14,7 +14,7 @@ interface AgentOversightTableProps {
 
 export function AgentOversightTable({ agents }: AgentOversightTableProps) {
   return (
-    <div className='bg-card/80 overflow-hidden rounded-2xl border'>
+    <div className='bg-card/90 overflow-hidden border'>
       <Table>
         <TableHeader>
           <TableRow>
@@ -29,12 +29,14 @@ export function AgentOversightTable({ agents }: AgentOversightTableProps) {
         <TableBody>
           {agents.map((agent) => (
             <TableRow key={agent.id}>
-              <TableCell className='font-medium'>{agent.name}</TableCell>
-              <TableCell>{agent.activeLeads}</TableCell>
-              <TableCell>{agent.listings}</TableCell>
-              <TableCell>{agent.openTasks}</TableCell>
-              <TableCell>{agent.responseTime}</TableCell>
-              <TableCell className='text-right'>{agent.pipeline}</TableCell>
+              <TableCell className='font-mono text-xs font-medium uppercase'>
+                {agent.name}
+              </TableCell>
+              <TableCell className='font-mono text-xs tabular-nums'>{agent.activeLeads}</TableCell>
+              <TableCell className='font-mono text-xs tabular-nums'>{agent.listings}</TableCell>
+              <TableCell className='font-mono text-xs tabular-nums'>{agent.openTasks}</TableCell>
+              <TableCell className='font-mono text-xs'>{agent.responseTime}</TableCell>
+              <TableCell className='text-right font-mono text-xs'>{agent.pipeline}</TableCell>
             </TableRow>
           ))}
         </TableBody>

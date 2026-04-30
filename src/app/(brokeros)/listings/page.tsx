@@ -8,10 +8,10 @@ export default function ListingsPage() {
   return (
     <PageContainer
       pageTitle='Listings'
-      pageDescription='Private, coming-soon, and active inventory under brokerage control.'
+      pageDescription='Controlled inventory available for lead matching and broker action.'
     >
-      <div className='space-y-6'>
-        <div className='grid gap-4 md:grid-cols-3'>
+      <div className='flex flex-col gap-4'>
+        <div className='grid gap-3 md:grid-cols-3'>
           <BrokerMetricCard
             label='Inventory Value'
             value='$10.3M'

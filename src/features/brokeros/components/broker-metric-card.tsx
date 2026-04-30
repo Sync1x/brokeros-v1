@@ -19,22 +19,22 @@ export function BrokerMetricCard({
   return (
     <div
       className={cn(
-        'bg-card/80 rounded-2xl border p-5 shadow-none',
-        accent && 'border-primary/35 bg-primary/5'
+        'bg-card/90 border p-3 shadow-none',
+        accent && 'border-primary/50 bg-primary/10'
       )}
     >
-      <div className='flex items-start justify-between gap-4'>
+      <div className='flex items-start justify-between gap-3'>
         <div>
-          <p className='text-muted-foreground text-xs font-medium tracking-[0.18em] uppercase'>
+          <p className='text-muted-foreground font-mono text-[0.65rem] font-medium tracking-[0.18em] uppercase'>
             {label}
           </p>
-          <p className='mt-4 text-3xl font-semibold'>{value}</p>
+          <p className='mt-2 font-mono text-2xl font-semibold tabular-nums'>{value}</p>
         </div>
-        <div className='border-primary/20 text-primary flex size-9 items-center justify-center rounded-xl border bg-transparent'>
-          <Icon className='size-4' />
+        <div className='border-primary/30 text-primary flex size-7 items-center justify-center border bg-transparent'>
+          <Icon className='size-3.5' />
         </div>
       </div>
-      {delta && <p className='text-muted-foreground mt-5 text-sm'>{delta}</p>}
+      {delta && <p className='text-muted-foreground mt-3 text-xs leading-5'>{delta}</p>}
     </div>
   );
 }
