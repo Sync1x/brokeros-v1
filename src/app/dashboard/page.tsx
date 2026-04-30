@@ -1,14 +1,13 @@
 import PageContainer from '@/components/layout/page-container';
-import { brokerLeads, brokerListings, brokerMatches } from '@/constants/brokeros-mock-data';
-import { MatchWorkbench } from '@/features/matches/components/match-workbench';
+import { DailyActionFeed } from '@/features/matches/components/daily-action-feed';
 
 export default function DashboardPage() {
   return (
     <PageContainer
-      pageTitle='Match Command'
-      pageDescription='Lead-to-listing matrix, rationale, and next action queue.'
+      pageTitle='Command Center'
+      pageDescription='Today’s lead-to-listing actions, ranked by what needs attention.'
     >
-      <MatchWorkbench leads={brokerLeads} listings={brokerListings} matches={brokerMatches} />
+      <DailyActionFeed />
     </PageContainer>
   );
 }

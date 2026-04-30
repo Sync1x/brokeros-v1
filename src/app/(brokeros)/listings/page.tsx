@@ -1,5 +1,5 @@
 import PageContainer from '@/components/layout/page-container';
-import { brokerListings } from '@/constants/brokeros-mock-data';
+import { brokerListings, brokerMatches } from '@/constants/brokeros-mock-data';
 import { ListingTable } from '@/features/listings/components/listing-table';
 
 export default function ListingsPage() {
@@ -8,7 +8,7 @@ export default function ListingsPage() {
       pageTitle='Listings'
       pageDescription='Controlled inventory available for lead matching and broker action.'
     >
-      <ListingTable listings={brokerListings} />
+      <ListingTable listings={brokerListings} matches={brokerMatches} />
     </PageContainer>
   );
 }

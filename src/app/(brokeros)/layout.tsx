@@ -2,7 +2,6 @@ import KBar from '@/components/kbar';
 import AppSidebar from '@/components/layout/app-sidebar';
 import Header from '@/components/layout/header';
 import { MatchInspector } from '@/components/layout/match-inspector';
-import { StatusBar } from '@/components/layout/status-bar';
 import { InfobarProvider } from '@/components/ui/infobar';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { cookies } from 'next/headers';
@@ -22,7 +21,6 @@ export default async function BrokerOSLayout({ children }: { children: React.Rea
               <div className='min-w-0 flex-1'>{children}</div>
               <MatchInspector />
             </div>
-            <StatusBar />
           </InfobarProvider>
         </SidebarInset>
       </SidebarProvider>

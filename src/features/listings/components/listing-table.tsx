@@ -8,13 +8,14 @@ import {
   TableHeader,
   TableRow
 } from '@/components/ui/table';
-import type { Listing } from '@/types/brokeros';
+import type { Listing, Match } from '@/types/brokeros';
 
 interface ListingTableProps {
   listings: Listing[];
+  matches: Match[];
 }
 
-export function ListingTable({ listings }: ListingTableProps) {
+export function ListingTable({ listings, matches }: ListingTableProps) {
   return (
     <div className='bg-background overflow-hidden border-y'>
       <Table>
@@ -24,35 +25,36 @@ export function ListingTable({ listings }: ListingTableProps) {
             <TableHead>Price</TableHead>
             <TableHead>Profile</TableHead>
             <TableHead>Status</TableHead>
-            <TableHead>Agent</TableHead>
+            <TableHead className='text-right'>Matched Leads</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {listings.map((listing) => (
-            <TableRow key={listing.id}>
-              <TableCell>
-                <Link
-                  href={`/listings/${listing.id}`}
-                  className='font-mono text-xs font-medium uppercase hover:text-primary'
-                >
-                  {listing.address}
-                </Link>
-                <p className='text-muted-foreground mt-1 font-mono text-[0.68rem] uppercase'>
-                  {listing.neighborhood}
-                </p>
-              </TableCell>
-              <TableCell className='font-mono text-xs'>{listing.price}</TableCell>
-              <TableCell className='text-xs'>
-                {listing.beds} bd / {listing.baths} ba / {listing.sqft} sqft
-              </TableCell>
-              <TableCell>
-                <Badge variant='outline' className='font-mono text-[0.65rem] uppercase'>
-                  {listing.status}
-                </Badge>
-              </TableCell>
-              <TableCell className='text-xs'>{listing.agent}</TableCell>
-            </TableRow>
-          ))}
+          {listings.map((listing) => {
+            const matchedLeads = matches.filter((match) => match.listingId === listing.id).length;
+
+            return (
+              <TableRow key={listing.id}>
+                <TableCell>
+                  <Link href={`/listings/${listing.id}`} className='font-medium hover:text-primary'>
+                    {listing.address}
+                  </Link>
+                  <p className='text-muted-foreground mt-1 font-mono text-[0.68rem] uppercase'>
+                    {listing.neighborhood}
+                  </p>
+                </TableCell>
+                <TableCell className='font-mono text-xs'>{listing.price}</TableCell>
+                <TableCell className='text-xs'>
+                  {listing.beds} bd / {listing.baths} ba / {listing.sqft} sqft
+                </TableCell>
+                <TableCell>
+                  <Badge variant='outline' className='font-mono text-[0.65rem] uppercase'>
+                    {listing.status}
+                  </Badge>
+                </TableCell>
+                <TableCell className='text-right font-mono text-xs'>{matchedLeads}</TableCell>
+              </TableRow>
+            );
+          })}
         </TableBody>
       </Table>
     </div>

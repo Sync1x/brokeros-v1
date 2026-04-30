@@ -12,7 +12,7 @@ export const navGroups: NavGroup[] = [
         items: []
       },
       {
-        title: 'Lead Memory',
+        title: 'Leads',
         url: '/leads',
         icon: 'user',
         shortcut: ['l', 'd'],
@@ -30,34 +30,6 @@ export const navGroups: NavGroup[] = [
         url: '/matches',
         icon: 'match',
         shortcut: ['m', 'm'],
-        items: []
-      },
-      {
-        title: 'Agent Inbox',
-        url: '/inbox',
-        icon: 'inbox',
-        shortcut: ['i', 'i'],
-        items: []
-      },
-      {
-        title: 'Documents',
-        url: '/documents',
-        icon: 'folderOpen',
-        shortcut: ['d', 'o'],
-        items: []
-      },
-      {
-        title: 'Templates',
-        url: '/templates',
-        icon: 'post',
-        shortcut: ['t', 't'],
-        items: []
-      },
-      {
-        title: 'Activity',
-        url: '/activity',
-        icon: 'activity',
-        shortcut: ['a', 'a'],
         items: []
       },
       {

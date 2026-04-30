@@ -150,10 +150,6 @@ export default function AppSidebar() {
                 <DropdownMenuSeparator />
 
                 <DropdownMenuGroup>
-                  <DropdownMenuItem onClick={() => router.push('/activity')}>
-                    <Icons.clock className='mr-2 h-4 w-4' />
-                    Activity
-                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => router.push('/settings')}>
                     <Icons.settings className='mr-2 h-4 w-4' />
                     Settings
