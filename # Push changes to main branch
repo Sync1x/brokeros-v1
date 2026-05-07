@@ -1,0 +1,5 @@
+# Push changes to main branch
+
+git add .
+git commit --no-verify -m "Describe what you changed"
+git push origin main

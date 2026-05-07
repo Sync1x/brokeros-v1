@@ -1,16 +1,52 @@
 'use client';
 import { navGroups } from '@/config/nav-config';
-import { brokerLeads, brokerListings, brokerMatches } from '@/constants/brokeros-mock-data';
+import {
+  brokerActivity,
+  brokerDocuments,
+  brokerLeads,
+  brokerListings,
+  brokerMatches,
+  brokerTemplates
+} from '@/constants/brokeros-mock-data';
 import { KBarAnimator, KBarPortal, KBarPositioner, KBarProvider, KBarSearch } from 'kbar';
 import { useRouter } from 'next/navigation';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import RenderResults from './render-result';
 import useThemeSwitching from './use-theme-switching';
 import { useFilteredNavGroups } from '@/hooks/use-nav';
 
+type LocalSearchLead = {
+  id: string;
+  type: 'buyer' | 'seller';
+  name: string;
+  area: string;
+  status: string;
+  email: string;
+  phone: string;
+};
+
+const LOCAL_LEADS_EVENT = 'brokeros:local-leads-updated';
+
 export default function KBar({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const filteredGroups = useFilteredNavGroups(navGroups);
+  const [localLeads, setLocalLeads] = useState<LocalSearchLead[]>([]);
+
+  useEffect(() => {
+    function handleLocalLeads(event: Event) {
+      const customEvent = event as CustomEvent<LocalSearchLead[]>;
+      setLocalLeads((current) => {
+        const next = new Map(current.map((lead) => [lead.id, lead]));
+        for (const lead of customEvent.detail ?? []) {
+          next.set(lead.id, lead);
+        }
+        return [...next.values()];
+      });
+    }
+
+    window.addEventListener(LOCAL_LEADS_EVENT, handleLocalLeads);
+    return () => window.removeEventListener(LOCAL_LEADS_EVENT, handleLocalLeads);
+  }, []);
 
   // These action are for the navigation
   const actions = useMemo(() => {
@@ -61,6 +97,15 @@ export default function KBar({ children }: { children: React.ReactNode }) {
       perform: () => navigateTo(`/leads/${lead.id}`)
     }));
 
+    const localLeadActions = localLeads.map((lead) => ({
+      id: `local-lead-${lead.id}`,
+      name: lead.name,
+      keywords: `${lead.name} ${lead.type} ${lead.area} ${lead.status} ${lead.email} ${lead.phone}`,
+      section: 'Leads',
+      subtitle: `${lead.type} / ${lead.area}`,
+      perform: () => navigateTo('/leads')
+    }));
+
     const listingActions = brokerListings.map((listing) => ({
       id: `listing-${listing.id}`,
       name: listing.address,
@@ -83,8 +128,44 @@ export default function KBar({ children }: { children: React.ReactNode }) {
       };
     });
 
-    return [...navigationActions, ...leadActions, ...listingActions, ...matchActions];
-  }, [router, filteredGroups]);
+    const documentActions = brokerDocuments.map((document) => ({
+      id: `document-${document.id}`,
+      name: document.title,
+      keywords: `${document.title} ${document.client} ${document.type} ${document.status}`,
+      section: 'Documents',
+      subtitle: `${document.client} / ${document.status}`,
+      perform: () => navigateTo('/documents')
+    }));
+
+    const templateActions = brokerTemplates.map((template) => ({
+      id: `template-${template.id}`,
+      name: template.title,
+      keywords: `${template.title} ${template.category} ${template.description}`,
+      section: 'Templates',
+      subtitle: `${template.category} / ${template.usageCount} uses`,
+      perform: () => navigateTo('/templates')
+    }));
+
+    const activityActions = brokerActivity.map((activity) => ({
+      id: `activity-${activity.id}`,
+      name: `${activity.actor} ${activity.action} ${activity.subject}`,
+      keywords: `${activity.actor} ${activity.action} ${activity.subject} ${activity.time} ${activity.tone}`,
+      section: 'Activity',
+      subtitle: activity.time,
+      perform: () => navigateTo('/activity')
+    }));
+
+    return [
+      ...navigationActions,
+      ...leadActions,
+      ...localLeadActions,
+      ...listingActions,
+      ...matchActions,
+      ...documentActions,
+      ...templateActions,
+      ...activityActions
+    ];
+  }, [router, filteredGroups, localLeads]);
 
   return (
     <KBarProvider actions={actions}>
@@ -102,7 +183,7 @@ const KBarComponent = ({ children }: { children: React.ReactNode }) => {
           <KBarAnimator className='bg-card text-card-foreground relative mt-40! w-full max-w-[680px] -translate-y-12! overflow-hidden border shadow-none'>
             <div className='bg-card border-border sticky top-0 z-10 border-b'>
               <KBarSearch
-                placeholder='Search leads, listings, or matches'
+                placeholder='Search anything in BrokerOS'
                 className='bg-card w-full border-none px-4 py-3 font-mono text-sm outline-hidden focus:ring-0 focus:ring-offset-0 focus:outline-hidden'
               />
             </div>

@@ -41,6 +41,20 @@
   }
 }
 
+.broker-logo-white {
+  display: none;
+}
+
+.dark .broker-logo-black,
+:root[data-theme='brokeros'] .broker-logo-black {
+  display: none;
+}
+
+.dark .broker-logo-white,
+:root[data-theme='brokeros'] .broker-logo-white {
+  display: block;
+}
+
 /* View Transition Effect */
 ::view-transition-old(root),
 ::view-transition-new(root) {

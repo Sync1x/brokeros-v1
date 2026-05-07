@@ -1,6 +1,6 @@
 'use client';
 
-import { Icons } from '@/components/icons';
+import Image from 'next/image';
 import {
   SidebarMenu,
   SidebarMenuButton,
@@ -14,19 +14,28 @@ export function OrgSwitcher() {
   return (
     <SidebarMenu>
       <SidebarMenuItem>
-        <SidebarMenuButton size='lg'>
-          <div className='bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 shrink-0 items-center justify-center rounded-lg'>
-            <Icons.homeSearch className='size-4' />
-          </div>
+        <SidebarMenuButton size='lg' className='justify-start px-2'>
           <div
-            className={`grid flex-1 text-left text-sm leading-tight transition-all duration-200 ease-in-out ${
+            className={`relative h-9 transition-all duration-200 ease-in-out ${
               state === 'collapsed'
-                ? 'invisible max-w-0 overflow-hidden opacity-0'
-                : 'visible max-w-full opacity-100'
+                ? 'w-9 overflow-hidden'
+                : 'w-28 overflow-hidden group-data-[collapsible=icon]:w-9'
             }`}
           >
-            <span className='truncate font-semibold'>BrokerOS</span>
-            <span className='text-muted-foreground truncate text-xs'>V1 Operating System</span>
+            <Image
+              src='/brand/broker-logo-black.svg'
+              alt='Broker'
+              width={112}
+              height={24}
+              className='broker-logo broker-logo-black absolute top-1/2 left-0 h-6 w-28 -translate-y-1/2 object-contain object-left'
+            />
+            <Image
+              src='/brand/broker-logo-white.svg'
+              alt='Broker'
+              width={112}
+              height={24}
+              className='broker-logo broker-logo-white absolute top-1/2 left-0 h-6 w-28 -translate-y-1/2 object-contain object-left'
+            />
           </div>
         </SidebarMenuButton>
       </SidebarMenuItem>
