@@ -16,13 +16,12 @@ interface GoogleTokenResponse {
   token_type?: string;
 }
 
-interface StoredGoogleCalendarToken {
+interface StoredGoogleCalendarTokenRow {
   user_id: string;
   access_token: string;
   refresh_token: string | null;
-  expires_at: string;
-  scope: string | null;
-  token_type: string | null;
+  /** Milliseconds since epoch (Postgres bigint; REST may return string or number) */
+  expiry_date: number | string | null;
 }
 
 export interface GoogleCalendarEvent {
@@ -48,23 +47,51 @@ function requiredEnv(name: string) {
   return value;
 }
 
-function supabaseUrl() {
-  return process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
+function firstNonEmpty(...values: (string | undefined)[]) {
+  for (const v of values) {
+    if (typeof v !== 'string') continue;
+    const s = v.trim();
+    if (s) return s;
+  }
+  return undefined;
 }
 
-function supabaseKey() {
-  return process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_SERVICE_KEY;
+/** Prefer NEXT_PUBLIC_SUPABASE_URL — matches typical .env.local; empty placeholders must not shadow it */
+function supabaseUrl() {
+  return firstNonEmpty(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_URL);
+}
+
+function supabaseServiceRoleKey() {
+  return firstNonEmpty(process.env.SUPABASE_SERVICE_ROLE_KEY, process.env.SUPABASE_SERVICE_KEY);
 }
 
 function getSupabaseConfig() {
   const url = supabaseUrl();
-  const key = supabaseKey();
+  const key = supabaseServiceRoleKey();
 
   if (!url || !key) {
-    throw new Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required');
+    const missing: string[] = [];
+    if (!url) {
+      missing.push('NEXT_PUBLIC_SUPABASE_URL');
+    }
+    if (!key) {
+      missing.push('SUPABASE_SERVICE_ROLE_KEY');
+    }
+    throw new Error(
+      `Calendar token storage requires: ${missing.join(', ')}. Optional override: SUPABASE_URL (instead of NEXT_PUBLIC_SUPABASE_URL).`
+    );
   }
 
   return { url: url.replace(/\/$/, ''), key };
+}
+
+function expiryDateToMs(expiry_date: StoredGoogleCalendarTokenRow['expiry_date']): number | null {
+  if (expiry_date == null) return null;
+  if (typeof expiry_date === 'number' && Number.isFinite(expiry_date)) {
+    return expiry_date;
+  }
+  const n = parseInt(String(expiry_date), 10);
+  return Number.isFinite(n) ? n : null;
 }
 
 function stateSecret() {
@@ -144,7 +171,7 @@ export async function exchangeGoogleCodeForToken(code: string) {
 
 async function upsertCalendarToken(userId: string, token: GoogleTokenResponse) {
   const existing = await getStoredCalendarToken(userId).catch(() => null);
-  const expiresAt = new Date(Date.now() + token.expires_in * 1000).toISOString();
+  const expiryMs = Date.now() + token.expires_in * 1000;
   const { url, key } = getSupabaseConfig();
 
   const response = await fetch(`${url}/rest/v1/${TOKEN_TABLE}?on_conflict=user_id`, {
@@ -159,10 +186,7 @@ async function upsertCalendarToken(userId: string, token: GoogleTokenResponse) {
       user_id: userId,
       access_token: token.access_token,
       refresh_token: token.refresh_token ?? existing?.refresh_token ?? null,
-      expires_at: expiresAt,
-      scope: token.scope ?? existing?.scope ?? CALENDAR_SCOPE,
-      token_type: token.token_type ?? existing?.token_type ?? 'Bearer',
-      updated_at: new Date().toISOString()
+      expiry_date: expiryMs
     })
   });
 
@@ -178,7 +202,7 @@ export async function storeGoogleCalendarToken(userId: string, token: GoogleToke
 export async function getStoredCalendarToken(userId: string) {
   const { url, key } = getSupabaseConfig();
   const params = new URLSearchParams({
-    select: 'user_id,access_token,refresh_token,expires_at,scope,token_type',
+    select: 'user_id,access_token,refresh_token,expiry_date',
     user_id: `eq.${userId}`,
     limit: '1'
   });
@@ -195,11 +219,11 @@ export async function getStoredCalendarToken(userId: string) {
     throw new Error(`Supabase token lookup failed: ${await response.text()}`);
   }
 
-  const rows = (await response.json()) as StoredGoogleCalendarToken[];
+  const rows = (await response.json()) as StoredGoogleCalendarTokenRow[];
   return rows[0] ?? null;
 }
 
-async function refreshAccessToken(userId: string, token: StoredGoogleCalendarToken) {
+async function refreshAccessToken(userId: string, token: StoredGoogleCalendarTokenRow) {
   if (!token.refresh_token) {
     throw new Error('Google Calendar refresh token is missing. Reconnect Google Calendar.');
   }
@@ -234,8 +258,8 @@ export async function getValidGoogleAccessToken(userId: string) {
   const token = await getStoredCalendarToken(userId);
   if (!token) return null;
 
-  const expiresAt = new Date(token.expires_at).getTime();
-  if (expiresAt - Date.now() > 60 * 1000) {
+  const expiryMs = expiryDateToMs(token.expiry_date);
+  if (expiryMs != null && expiryMs - Date.now() > 60 * 1000) {
     return token.access_token;
   }
 
