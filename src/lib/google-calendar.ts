@@ -1,5 +1,6 @@
 import 'server-only';
 import crypto from 'node:crypto';
+import { loadEnvConfig } from '@next/env';
 
 const GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
@@ -15,6 +16,8 @@ interface GoogleTokenResponse {
   scope?: string;
   token_type?: string;
 }
+
+let envLoaded = false;
 
 interface StoredGoogleCalendarTokenRow {
   user_id: string;
@@ -41,8 +44,24 @@ export interface GoogleCalendarEvent {
   };
 }
 
+function ensureEnvLoaded() {
+  if (envLoaded) return;
+  loadEnvConfig(process.cwd(), process.env.NODE_ENV !== 'production', {
+    info: () => {},
+    error: () => {}
+  });
+  envLoaded = true;
+}
+
+function envValue(name: string) {
+  const direct = process.env[name];
+  if (direct?.trim()) return direct;
+  ensureEnvLoaded();
+  return process.env[name];
+}
+
 function requiredEnv(name: string) {
-  const value = process.env[name];
+  const value = envValue(name);
   if (!value) throw new Error(`${name} is not configured`);
   return value;
 }
@@ -58,11 +77,14 @@ function firstNonEmpty(...values: (string | undefined)[]) {
 
 /** Prefer NEXT_PUBLIC_SUPABASE_URL — matches typical .env.local; empty placeholders must not shadow it */
 function supabaseUrl() {
-  return firstNonEmpty(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_URL);
+  return firstNonEmpty(envValue('NEXT_PUBLIC_SUPABASE_URL'), envValue('SUPABASE_URL'));
 }
 
 function supabaseServiceRoleKey() {
-  return firstNonEmpty(process.env.SUPABASE_SERVICE_ROLE_KEY, process.env.SUPABASE_SERVICE_KEY);
+  return firstNonEmpty(
+    envValue('SUPABASE_SERVICE_ROLE_KEY'),
+    envValue('SUPABASE_SERVICE_KEY')
+  );
 }
 
 function getSupabaseConfig() {
