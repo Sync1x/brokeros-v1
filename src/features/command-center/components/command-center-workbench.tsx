@@ -184,12 +184,12 @@ function ActionCard({
 
 function ContactsStat({ pace }: { pace: CommandPace }) {
   return (
-    <section className='rounded-lg border bg-background px-3 py-2 text-right shadow-xs'>
-      <p className='text-[0.65rem] font-medium text-muted-foreground uppercase'>Contacts made</p>
-      <p className='mt-0.5 font-mono text-sm font-semibold'>
+    <div className='text-right'>
+      <p className='text-[0.6rem] font-medium text-muted-foreground uppercase'>Contacts made</p>
+      <p className='font-mono text-xs font-semibold'>
         {pace.contactsToday} today / {pace.contactsThisWeek} this week
       </p>
-    </section>
+    </div>
   );
 }
 
