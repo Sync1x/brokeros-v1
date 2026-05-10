@@ -103,12 +103,6 @@ function endOfDay(date: Date) {
   return nextDate;
 }
 
-function addDays(date: Date, days: number) {
-  const nextDate = new Date(date);
-  nextDate.setDate(nextDate.getDate() + days);
-  return nextDate;
-}
-
 function isSameDay(a: Date, b: Date) {
   return (
     a.getFullYear() === b.getFullYear() &&
@@ -182,10 +176,6 @@ function formatDayHeading(date: Date) {
   return isSameDay(date, new Date()) ? `Today, ${label}` : label;
 }
 
-function formatDayKey(date: Date) {
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-}
-
 function formatEventDay(event: GoogleCalendarEvent) {
   const date = parseEventDate(eventStart(event));
   if (!date || Number.isNaN(date.getTime())) return 'Google Calendar';
@@ -239,10 +229,6 @@ function calendarColor(event: GoogleCalendarEvent) {
   };
 }
 
-function minutesFromDayStart(date: Date) {
-  return date.getHours() * 60 + date.getMinutes();
-}
-
 function eventsForDay(events: GoogleCalendarEvent[], day: Date) {
   const dayStart = startOfDay(day);
   const dayEnd = endOfDay(day);
@@ -277,9 +263,6 @@ const GOOGLE_EVENT_COLOR_FALLBACKS: Record<string, string> = {
   '11': '#dc2127'
 };
 
-const TIMELINE_MARKERS = ['12 AM', '6 AM', '12 PM', '6 PM', '11:59 PM'];
-const TIMELINE_HEIGHT = 720;
-
 function buildDateTime(date: string, time: string) {
   if (!date) return undefined;
   if (!time) return { date };
@@ -289,59 +272,40 @@ function buildDateTime(date: string, time: string) {
   };
 }
 
-function CalendarEventBlock({
+function CalendarEventCard({
   event,
-  day,
   selected,
   onClick
 }: {
   event: GoogleCalendarEvent;
-  day: Date;
   selected: boolean;
   onClick: () => void;
 }) {
-  const start = parseEventDate(eventStart(event));
-  const end = parseEventDate(eventEnd(event));
-  const isAllDay = Boolean(event.start?.date && !event.start.dateTime);
   const color = calendarColor(event);
-  const dayStart = startOfDay(day);
-  const dayEnd = endOfDay(day);
-  const clampedStart = start && start > dayStart ? start : dayStart;
-  const clampedEnd = end && end < dayEnd ? end : dayEnd;
-  const startMinute = isAllDay ? 0 : minutesFromDayStart(clampedStart);
-  const endMinute = isAllDay
-    ? 1440
-    : Math.max(startMinute + 20, minutesFromDayStart(clampedEnd));
-  const top = (startMinute / 1440) * 100;
-  const height = Math.max(32, ((endMinute - startMinute) / 1440) * 100);
-  const eventStyle = {
-    '--event-color': color.background,
-    top: `${top}%`,
-    height: `${height}%`,
-    borderColor: color.background,
-    backgroundColor: `${color.background}1f`
-  } as CSSProperties;
+  const eventStyle = { '--event-color': color.background } as CSSProperties;
 
   return (
     <button
       type='button'
       onClick={onClick}
       className={cn(
-        'absolute right-2 left-16 overflow-hidden rounded-md border bg-background/95 px-2.5 py-1.5 text-left shadow-xs transition-all hover:-translate-y-px hover:shadow-sm',
-        'before:absolute before:inset-y-1.5 before:left-1.5 before:w-1 before:rounded-full before:bg-[var(--event-color)]',
-        selected && 'ring-2 ring-ring/35'
+        'relative flex w-full items-start gap-3 rounded-lg border bg-background p-3 text-left shadow-xs transition-colors hover:bg-muted/35',
+        selected && 'border-ring ring-2 ring-ring/25'
       )}
       style={eventStyle}
       aria-label={`Edit ${event.summary || 'untitled event'}`}
     >
-      <div className='min-w-0 pl-3'>
-        <p className='truncate text-xs font-semibold leading-tight'>
-          {event.summary || 'Untitled event'}
-        </p>
-        <p className='mt-0.5 truncate font-mono text-[0.62rem] text-muted-foreground uppercase'>
-          {formatTimeRange(event)}
-        </p>
-        <p className='mt-0.5 truncate text-[0.68rem] text-muted-foreground'>
+      <span className='mt-1 block size-2.5 shrink-0 rounded-full bg-[var(--event-color)]' />
+      <div className='min-w-0 flex-1'>
+        <div className='flex items-start justify-between gap-3'>
+          <p className='min-w-0 truncate text-sm font-semibold leading-tight'>
+            {event.summary || 'Untitled event'}
+          </p>
+          <span className='shrink-0 font-mono text-[0.66rem] text-muted-foreground uppercase'>
+            {formatTimeRange(event)}
+          </span>
+        </div>
+        <p className='mt-1 truncate text-xs text-muted-foreground'>
           {event.location || event.calendarSummary || 'Google Calendar'}
         </p>
       </div>
@@ -349,67 +313,36 @@ function CalendarEventBlock({
   );
 }
 
-function DayTimeline({
-  day,
+function TodayEventList({
   events,
   selectedEventKey,
   onEventClick
 }: {
-  day: Date;
   events: GoogleCalendarEvent[];
   selectedEventKey?: string;
   onEventClick: (event: GoogleCalendarEvent) => void;
 }) {
-  const dayEvents = eventsForDay(events, day);
+  if (events.length === 0) {
+    return (
+      <div className='rounded-lg border border-dashed bg-muted/20 px-3 py-8 text-center'>
+        <p className='text-sm font-medium'>No events today</p>
+        <p className='mt-1 text-xs text-muted-foreground'>
+          Your calendar is clear for the day.
+        </p>
+      </div>
+    );
+  }
 
   return (
-    <div className='border-b last:border-b-0'>
-      <div className='sticky top-0 z-10 flex items-center justify-between border-b bg-background/95 px-3 py-2 backdrop-blur'>
-        <div className='min-w-0'>
-          <p className='truncate text-sm font-semibold'>
-            {formatDayHeading(day)}
-          </p>
-          <p className='mt-0.5 text-xs text-muted-foreground'>
-            12:00 AM - 11:59 PM
-          </p>
-        </div>
-        <span className='font-mono text-[0.68rem] text-muted-foreground uppercase'>
-          {dayEvents.length} {dayEvents.length === 1 ? 'event' : 'events'}
-        </span>
-      </div>
-
-      <div
-        className='relative bg-background'
-        style={{ height: TIMELINE_HEIGHT }}
-      >
-        {TIMELINE_MARKERS.map((marker, index) => (
-          <div
-            key={marker}
-            className='absolute right-0 left-0 border-t border-dashed border-border/70'
-            style={{ top: `${(index / (TIMELINE_MARKERS.length - 1)) * 100}%` }}
-          >
-            <span className='absolute -top-2 left-3 bg-background pr-2 font-mono text-[0.62rem] text-muted-foreground uppercase'>
-              {marker}
-            </span>
-          </div>
-        ))}
-
-        {dayEvents.length > 0 ? (
-          dayEvents.map((event) => (
-            <CalendarEventBlock
-              key={`${formatDayKey(day)}-${event.calendarId ?? 'primary'}-${event.id}`}
-              day={day}
-              event={event}
-              selected={selectedEventKey === eventKey(event)}
-              onClick={() => onEventClick(event)}
-            />
-          ))
-        ) : (
-          <div className='absolute inset-x-16 top-1/2 -translate-y-1/2 rounded-md border border-dashed bg-muted/20 px-3 py-2 text-center text-xs text-muted-foreground'>
-            No events scheduled.
-          </div>
-        )}
-      </div>
+    <div className='flex flex-col gap-2.5'>
+      {events.map((event) => (
+        <CalendarEventCard
+          key={eventKey(event)}
+          event={event}
+          selected={selectedEventKey === eventKey(event)}
+          onClick={() => onEventClick(event)}
+        />
+      ))}
     </div>
   );
 }
@@ -458,10 +391,16 @@ export function GoogleCalendarWidget() {
     };
   }, []);
 
-  const calendarDays = useMemo(() => {
-    const today = startOfDay(new Date());
-    return Array.from({ length: 14 }, (_, index) => addDays(today, index));
-  }, []);
+  const today = useMemo(() => startOfDay(new Date()), []);
+  const todayEvents = useMemo(() => {
+    return eventsForDay(data?.events ?? [], today);
+  }, [data?.events, today]);
+  const todayLabel = useMemo(() => {
+    return formatDayHeading(today);
+  }, [today]);
+  const todayCountLabel = useMemo(() => {
+    return `${todayEvents.length} ${todayEvents.length === 1 ? 'event' : 'events'}`;
+  }, [todayEvents.length]);
 
   function openEventEditor(event: GoogleCalendarEvent) {
     setSelectedEvent(event);
@@ -626,12 +565,12 @@ export function GoogleCalendarWidget() {
 
   return (
     <>
-      <section className='flex h-[calc(100vh-8.75rem)] min-h-[520px] flex-col overflow-hidden rounded-xl border bg-background shadow-xs'>
+      <section className='flex flex-col rounded-xl border bg-background shadow-xs'>
         <div className='flex items-center justify-between border-b bg-muted/20 px-3 py-2.5'>
           <div className='min-w-0'>
             <h2 className='text-sm font-semibold'>Calendar</h2>
             <p className='mt-0.5 text-xs text-muted-foreground'>
-              Full-day Google Calendar view
+              Today at a glance
             </p>
           </div>
           <Button variant='outline' size='icon' aria-label='Calendar widget'>
@@ -641,9 +580,10 @@ export function GoogleCalendarWidget() {
 
         {isLoading && (
           <div className='flex flex-col gap-3 p-3'>
-            <Skeleton className='h-10 rounded-md' />
-            <Skeleton className='h-56 rounded-md' />
-            <Skeleton className='h-56 rounded-md' />
+            <Skeleton className='h-14 rounded-lg' />
+            <Skeleton className='h-16 rounded-lg' />
+            <Skeleton className='h-16 rounded-lg' />
+            <Skeleton className='h-16 rounded-lg' />
           </div>
         )}
 
@@ -670,18 +610,28 @@ export function GoogleCalendarWidget() {
         )}
 
         {!isLoading && data?.connected && !data.error && (
-          <div className='min-h-0 flex-1 overflow-y-auto'>
-            {calendarDays.map((day) => (
-              <DayTimeline
-                key={formatDayKey(day)}
-                day={day}
-                events={data.events}
-                selectedEventKey={
-                  selectedEvent ? eventKey(selectedEvent) : undefined
-                }
-                onEventClick={openEventEditor}
-              />
-            ))}
+          <div className='flex flex-col gap-3 p-3'>
+            <div className='rounded-lg border bg-muted/15 px-3 py-3'>
+              <div className='flex items-start justify-between gap-3'>
+                <div className='min-w-0'>
+                  <p className='truncate text-sm font-semibold'>{todayLabel}</p>
+                  <p className='mt-0.5 text-xs text-muted-foreground'>
+                    12:00 AM - 11:59 PM
+                  </p>
+                </div>
+                <span className='shrink-0 font-mono text-[0.68rem] text-muted-foreground uppercase'>
+                  {todayCountLabel}
+                </span>
+              </div>
+            </div>
+
+            <TodayEventList
+              events={todayEvents}
+              selectedEventKey={
+                selectedEvent ? eventKey(selectedEvent) : undefined
+              }
+              onEventClick={openEventEditor}
+            />
           </div>
         )}
       </section>

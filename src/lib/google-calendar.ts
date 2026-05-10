@@ -369,7 +369,7 @@ export async function listGoogleCalendarEvents(userId: string) {
   const now = new Date();
   now.setHours(0, 0, 0, 0);
   const end = new Date(now);
-  end.setDate(now.getDate() + 14);
+  end.setDate(now.getDate() + 1);
 
   const headers = {
     Authorization: `Bearer ${accessToken}`
