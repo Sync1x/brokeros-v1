@@ -4,10 +4,9 @@ import { loadEnvConfig } from '@next/env';
 
 const GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
-const GOOGLE_CALENDAR_EVENTS_URL =
-  'https://www.googleapis.com/calendar/v3/calendars/primary/events';
+const GOOGLE_CALENDAR_API_URL = 'https://www.googleapis.com/calendar/v3';
 const TOKEN_TABLE = 'google_calendar_tokens';
-const CALENDAR_SCOPE = 'https://www.googleapis.com/auth/calendar.readonly';
+const CALENDAR_SCOPE = 'https://www.googleapis.com/auth/calendar';
 
 interface GoogleTokenResponse {
   access_token: string;
@@ -30,8 +29,26 @@ interface StoredGoogleCalendarTokenRow {
 export interface GoogleCalendarEvent {
   id: string;
   summary?: string;
+  description?: string;
   location?: string;
   htmlLink?: string;
+  colorId?: string;
+  calendarId?: string;
+  calendarSummary?: string;
+  calendarBackgroundColor?: string;
+  calendarForegroundColor?: string;
+  eventBackgroundColor?: string;
+  eventForegroundColor?: string;
+  organizer?: {
+    email?: string;
+    displayName?: string;
+    self?: boolean;
+  };
+  creator?: {
+    email?: string;
+    displayName?: string;
+    self?: boolean;
+  };
   start?: {
     date?: string;
     dateTime?: string;
@@ -42,6 +59,34 @@ export interface GoogleCalendarEvent {
     dateTime?: string;
     timeZone?: string;
   };
+}
+
+export interface GoogleCalendarEventUpdate {
+  summary?: string;
+  description?: string;
+  location?: string;
+  start?: GoogleCalendarEvent['start'];
+  end?: GoogleCalendarEvent['end'];
+}
+
+interface GoogleCalendarListEntry {
+  id: string;
+  summary?: string;
+  selected?: boolean;
+  hidden?: boolean;
+  primary?: boolean;
+  backgroundColor?: string;
+  foregroundColor?: string;
+}
+
+interface GoogleCalendarColors {
+  event?: Record<
+    string,
+    {
+      background: string;
+      foreground: string;
+    }
+  >;
 }
 
 function ensureEnvLoaded() {
@@ -77,7 +122,10 @@ function firstNonEmpty(...values: (string | undefined)[]) {
 
 /** Prefer NEXT_PUBLIC_SUPABASE_URL — matches typical .env.local; empty placeholders must not shadow it */
 function supabaseUrl() {
-  return firstNonEmpty(envValue('NEXT_PUBLIC_SUPABASE_URL'), envValue('SUPABASE_URL'));
+  return firstNonEmpty(
+    envValue('NEXT_PUBLIC_SUPABASE_URL'),
+    envValue('SUPABASE_URL')
+  );
 }
 
 function supabaseServiceRoleKey() {
@@ -107,7 +155,9 @@ function getSupabaseConfig() {
   return { url: url.replace(/\/$/, ''), key };
 }
 
-function expiryDateToMs(expiry_date: StoredGoogleCalendarTokenRow['expiry_date']): number | null {
+function expiryDateToMs(
+  expiry_date: StoredGoogleCalendarTokenRow['expiry_date']
+): number | null {
   if (expiry_date == null) return null;
   if (typeof expiry_date === 'number' && Number.isFinite(expiry_date)) {
     return expiry_date;
@@ -117,7 +167,9 @@ function expiryDateToMs(expiry_date: StoredGoogleCalendarTokenRow['expiry_date']
 }
 
 function stateSecret() {
-  return process.env.GOOGLE_OAUTH_STATE_SECRET ?? requiredEnv('GOOGLE_CLIENT_SECRET');
+  return (
+    process.env.GOOGLE_OAUTH_STATE_SECRET ?? requiredEnv('GOOGLE_CLIENT_SECRET')
+  );
 }
 
 function base64Url(value: string) {
@@ -125,7 +177,10 @@ function base64Url(value: string) {
 }
 
 function signStatePayload(payload: string) {
-  return crypto.createHmac('sha256', stateSecret()).update(payload).digest('base64url');
+  return crypto
+    .createHmac('sha256', stateSecret())
+    .update(payload)
+    .digest('base64url');
 }
 
 export function createGoogleOAuthState(userId: string) {
@@ -146,7 +201,12 @@ export function verifyGoogleOAuthState(state: string, expectedUserId: string) {
   const expectedSignature = signStatePayload(payload);
   if (signature.length !== expectedSignature.length) return false;
 
-  if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature))) {
+  if (
+    !crypto.timingSafeEqual(
+      Buffer.from(signature),
+      Buffer.from(expectedSignature)
+    )
+  ) {
     return false;
   }
 
@@ -196,28 +256,34 @@ async function upsertCalendarToken(userId: string, token: GoogleTokenResponse) {
   const expiryMs = Date.now() + token.expires_in * 1000;
   const { url, key } = getSupabaseConfig();
 
-  const response = await fetch(`${url}/rest/v1/${TOKEN_TABLE}?on_conflict=user_id`, {
-    method: 'POST',
-    headers: {
-      apikey: key,
-      Authorization: `Bearer ${key}`,
-      'Content-Type': 'application/json',
-      Prefer: 'resolution=merge-duplicates'
-    },
-    body: JSON.stringify({
-      user_id: userId,
-      access_token: token.access_token,
-      refresh_token: token.refresh_token ?? existing?.refresh_token ?? null,
-      expiry_date: expiryMs
-    })
-  });
+  const response = await fetch(
+    `${url}/rest/v1/${TOKEN_TABLE}?on_conflict=user_id`,
+    {
+      method: 'POST',
+      headers: {
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+        'Content-Type': 'application/json',
+        Prefer: 'resolution=merge-duplicates'
+      },
+      body: JSON.stringify({
+        user_id: userId,
+        access_token: token.access_token,
+        refresh_token: token.refresh_token ?? existing?.refresh_token ?? null,
+        expiry_date: expiryMs
+      })
+    }
+  );
 
   if (!response.ok) {
     throw new Error(`Supabase token upsert failed: ${await response.text()}`);
   }
 }
 
-export async function storeGoogleCalendarToken(userId: string, token: GoogleTokenResponse) {
+export async function storeGoogleCalendarToken(
+  userId: string,
+  token: GoogleTokenResponse
+) {
   await upsertCalendarToken(userId, token);
 }
 
@@ -229,13 +295,16 @@ export async function getStoredCalendarToken(userId: string) {
     limit: '1'
   });
 
-  const response = await fetch(`${url}/rest/v1/${TOKEN_TABLE}?${params.toString()}`, {
-    headers: {
-      apikey: key,
-      Authorization: `Bearer ${key}`
-    },
-    cache: 'no-store'
-  });
+  const response = await fetch(
+    `${url}/rest/v1/${TOKEN_TABLE}?${params.toString()}`,
+    {
+      headers: {
+        apikey: key,
+        Authorization: `Bearer ${key}`
+      },
+      cache: 'no-store'
+    }
+  );
 
   if (!response.ok) {
     throw new Error(`Supabase token lookup failed: ${await response.text()}`);
@@ -245,9 +314,14 @@ export async function getStoredCalendarToken(userId: string) {
   return rows[0] ?? null;
 }
 
-async function refreshAccessToken(userId: string, token: StoredGoogleCalendarTokenRow) {
+async function refreshAccessToken(
+  userId: string,
+  token: StoredGoogleCalendarTokenRow
+) {
   if (!token.refresh_token) {
-    throw new Error('Google Calendar refresh token is missing. Reconnect Google Calendar.');
+    throw new Error(
+      'Google Calendar refresh token is missing. Reconnect Google Calendar.'
+    );
   }
 
   const response = await fetch(GOOGLE_TOKEN_URL, {
@@ -293,28 +367,150 @@ export async function listGoogleCalendarEvents(userId: string) {
   if (!accessToken) return null;
 
   const now = new Date();
+  now.setHours(0, 0, 0, 0);
   const end = new Date(now);
   end.setDate(now.getDate() + 14);
 
-  const params = new URLSearchParams({
-    timeMin: now.toISOString(),
-    timeMax: end.toISOString(),
-    maxResults: '12',
-    singleEvents: 'true',
-    orderBy: 'startTime'
-  });
+  const headers = {
+    Authorization: `Bearer ${accessToken}`
+  };
 
-  const response = await fetch(`${GOOGLE_CALENDAR_EVENTS_URL}?${params.toString()}`, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`
-    },
-    cache: 'no-store'
-  });
+  const [calendarListResponse, colorsResponse] = await Promise.all([
+    fetch(`${GOOGLE_CALENDAR_API_URL}/users/me/calendarList`, {
+      headers,
+      cache: 'no-store'
+    }),
+    fetch(`${GOOGLE_CALENDAR_API_URL}/colors`, {
+      headers,
+      cache: 'no-store'
+    })
+  ]);
 
-  if (!response.ok) {
-    throw new Error(`Google Calendar events.list failed: ${await response.text()}`);
+  if (!calendarListResponse.ok) {
+    throw new Error(
+      `Google Calendar calendarList.list failed: ${await calendarListResponse.text()}`
+    );
   }
 
-  const data = (await response.json()) as { items?: GoogleCalendarEvent[] };
-  return data.items ?? [];
+  if (!colorsResponse.ok) {
+    throw new Error(
+      `Google Calendar colors.get failed: ${await colorsResponse.text()}`
+    );
+  }
+
+  const calendarList = (await calendarListResponse.json()) as {
+    items?: GoogleCalendarListEntry[];
+  };
+  const colors = (await colorsResponse.json()) as GoogleCalendarColors;
+  const calendars =
+    calendarList.items?.filter(
+      (calendar) => calendar.selected && !calendar.hidden
+    ) ?? [];
+
+  const eventLists = await Promise.all(
+    calendars.map(async (calendar) => {
+      const params = new URLSearchParams({
+        timeMin: now.toISOString(),
+        timeMax: end.toISOString(),
+        maxResults: '250',
+        singleEvents: 'true',
+        orderBy: 'startTime'
+      });
+
+      const response = await fetch(
+        `${GOOGLE_CALENDAR_API_URL}/calendars/${encodeURIComponent(calendar.id)}/events?${params.toString()}`,
+        {
+          headers,
+          cache: 'no-store'
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(
+          `Google Calendar events.list failed: ${await response.text()}`
+        );
+      }
+
+      const data = (await response.json()) as { items?: GoogleCalendarEvent[] };
+      return (data.items ?? []).map((event) => {
+        const eventColor = event.colorId
+          ? colors.event?.[event.colorId]
+          : undefined;
+
+        return {
+          ...event,
+          calendarId: calendar.id,
+          calendarSummary: calendar.summary,
+          calendarBackgroundColor: calendar.backgroundColor,
+          calendarForegroundColor: calendar.foregroundColor,
+          eventBackgroundColor: eventColor?.background,
+          eventForegroundColor: eventColor?.foreground
+        };
+      });
+    })
+  );
+
+  return eventLists.flat();
+}
+
+export async function updateGoogleCalendarEvent(
+  userId: string,
+  eventId: string,
+  event: GoogleCalendarEventUpdate,
+  calendarId = 'primary'
+) {
+  const accessToken = await getValidGoogleAccessToken(userId);
+  if (!accessToken) return null;
+
+  const response = await fetch(
+    `${GOOGLE_CALENDAR_API_URL}/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`,
+    {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(event),
+      cache: 'no-store'
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      `Google Calendar events.patch failed: ${await response.text()}`
+    );
+  }
+
+  return {
+    ...((await response.json()) as GoogleCalendarEvent),
+    calendarId
+  };
+}
+
+export async function deleteGoogleCalendarEvent(
+  userId: string,
+  eventId: string,
+  calendarId = 'primary'
+) {
+  const accessToken = await getValidGoogleAccessToken(userId);
+  if (!accessToken) return null;
+
+  const response = await fetch(
+    `${GOOGLE_CALENDAR_API_URL}/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`,
+    {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${accessToken}`
+      },
+      cache: 'no-store'
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      `Google Calendar events.delete failed: ${await response.text()}`
+    );
+  }
+
+  return true;
 }

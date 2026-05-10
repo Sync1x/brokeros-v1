@@ -8,7 +8,7 @@ export default function DashboardPage() {
       pageTitle='Command Center'
       pageDescription='Today’s lead-to-listing actions, ranked by what needs attention.'
     >
-      <div className='grid gap-3 xl:grid-cols-[minmax(0,1fr)_360px]'>
+      <div className='grid min-h-0 flex-1 gap-3 xl:grid-cols-[minmax(0,1fr)_360px]'>
         <DailyActionFeed />
         <GoogleCalendarWidget />
       </div>

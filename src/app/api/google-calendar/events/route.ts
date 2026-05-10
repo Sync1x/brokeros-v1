@@ -1,4 +1,9 @@
-import { listGoogleCalendarEvents } from '@/lib/google-calendar';
+import {
+  deleteGoogleCalendarEvent,
+  listGoogleCalendarEvents,
+  updateGoogleCalendarEvent,
+  type GoogleCalendarEventUpdate
+} from '@/lib/google-calendar';
 import { auth } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 
@@ -12,17 +17,6 @@ export async function GET() {
   }
 
   try {
-    // TEMP DEBUG: verify runtime env availability without exposing secret values.
-    console.log('[google-calendar/events] env presence', {
-      NEXT_PUBLIC_SUPABASE_URL: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL?.trim()),
-      SUPABASE_URL: Boolean(process.env.SUPABASE_URL?.trim()),
-      SUPABASE_SERVICE_ROLE_KEY: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()),
-      SUPABASE_SERVICE_KEY: Boolean(process.env.SUPABASE_SERVICE_KEY?.trim()),
-      GOOGLE_CLIENT_ID: Boolean(process.env.GOOGLE_CLIENT_ID?.trim()),
-      GOOGLE_CLIENT_SECRET: Boolean(process.env.GOOGLE_CLIENT_SECRET?.trim()),
-      GOOGLE_REDIRECT_URI: Boolean(process.env.GOOGLE_REDIRECT_URI?.trim())
-    });
-
     const events = await listGoogleCalendarEvents(userId);
 
     if (!events) {
@@ -31,7 +25,95 @@ export async function GET() {
 
     return NextResponse.json({ connected: true, events });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unable to load calendar events';
-    return NextResponse.json({ connected: true, events: [], error: message }, { status: 500 });
+    const message =
+      error instanceof Error ? error.message : 'Unable to load calendar events';
+    return NextResponse.json(
+      { connected: true, events: [], error: message },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PATCH(request: Request) {
+  const { userId } = await auth();
+
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  try {
+    const body = (await request.json()) as {
+      eventId?: string;
+      calendarId?: string;
+      event?: GoogleCalendarEventUpdate;
+    };
+
+    if (!body.eventId || !body.event) {
+      return NextResponse.json(
+        { error: 'Missing event update payload' },
+        { status: 400 }
+      );
+    }
+
+    const event = await updateGoogleCalendarEvent(
+      userId,
+      body.eventId,
+      body.event,
+      body.calendarId
+    );
+
+    if (!event) {
+      return NextResponse.json({ connected: false, event: null });
+    }
+
+    return NextResponse.json({ connected: true, event });
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : 'Unable to update calendar event';
+    return NextResponse.json(
+      { connected: true, event: null, error: message },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(request: Request) {
+  const { userId } = await auth();
+
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  try {
+    const { searchParams } = new URL(request.url);
+    const eventId = searchParams.get('eventId');
+    const calendarId = searchParams.get('calendarId') ?? undefined;
+
+    if (!eventId) {
+      return NextResponse.json({ error: 'Missing eventId' }, { status: 400 });
+    }
+
+    const deleted = await deleteGoogleCalendarEvent(
+      userId,
+      eventId,
+      calendarId
+    );
+
+    if (!deleted) {
+      return NextResponse.json({ connected: false, deleted: false });
+    }
+
+    return NextResponse.json({ connected: true, deleted: true, eventId });
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : 'Unable to delete calendar event';
+    return NextResponse.json(
+      { connected: true, deleted: false, error: message },
+      { status: 500 }
+    );
   }
 }
