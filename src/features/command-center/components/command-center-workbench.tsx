@@ -5,7 +5,6 @@ import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Icons } from '@/components/icons';
 import { cn } from '@/lib/utils';
 import type { CommandAction, CommandActionState, CommandPace } from '../api/types';
 
@@ -37,9 +36,20 @@ const typeLabels: Record<CommandAction['type'], string> = {
 };
 
 function priorityClass(priority: CommandAction['priority']) {
-  if (priority === 'critical') return 'text-destructive';
-  if (priority === 'high') return 'text-primary';
-  return 'text-muted-foreground';
+  if (priority === 'critical') return 'border-red-500 bg-red-500 text-white';
+  if (priority === 'high') return 'border-orange-500 bg-orange-500 text-white';
+  return 'border-blue-500 bg-blue-500 text-white';
+}
+
+function PriorityBadge({ priority }: { priority: CommandAction['priority'] }) {
+  return (
+    <Badge
+      variant='outline'
+      className={cn('font-mono text-[0.62rem] uppercase', priorityClass(priority))}
+    >
+      {priority}
+    </Badge>
+  );
 }
 
 function readStoredState() {
@@ -103,9 +113,10 @@ function ActionCard({
         <button
           type='button'
           onClick={() => onSelect(action)}
-          className='min-w-0 text-left'
+          className='grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-2 text-left'
           aria-expanded={isSelected}
         >
+          <PriorityBadge priority={action.priority} />
           <h3
             className={cn(
               'truncate text-sm font-semibold leading-tight transition-colors hover:text-primary',
@@ -153,14 +164,7 @@ function ActionCard({
                 Email
               </Button>
             )}
-            <span
-              className={cn(
-                'font-mono text-[0.62rem] font-semibold uppercase',
-                priorityClass(action.priority)
-              )}
-            >
-              {action.priority}
-            </span>
+            <PriorityBadge priority={action.priority} />
             <span className='font-mono text-[0.62rem] text-muted-foreground uppercase'>
               {typeLabels[action.type]} / {action.dueAt ?? 'Today'}
             </span>
@@ -175,6 +179,17 @@ function ActionCard({
         </div>
       )}
     </article>
+  );
+}
+
+function PaceStat({ pace }: { pace: CommandPace }) {
+  return (
+    <div className='text-right'>
+      <p className='text-[0.65rem] font-medium text-muted-foreground uppercase'>Contacts made</p>
+      <p className='mt-0.5 font-mono text-sm font-semibold'>
+        {pace.contactsToday} today / {pace.contactsThisWeek} this week
+      </p>
+    </div>
   );
 }
 
@@ -195,20 +210,6 @@ function ActionLine({ title, actions }: { title: string; actions: CommandAction[
   );
 }
 
-function PaceLine({ pace }: { pace: CommandPace }) {
-  return (
-    <section className='border-t pt-3'>
-      <div className='flex items-center justify-between gap-3'>
-        <p className='text-xs font-medium'>{pace.label}</p>
-        <Icons.phone className='size-4 text-muted-foreground' />
-      </div>
-      <p className='mt-1 font-mono text-xs text-muted-foreground'>
-        {pace.contactsToday} today / {pace.contactsThisWeek} this week
-      </p>
-    </section>
-  );
-}
-
 function EmptyQueue() {
   return (
     <div className='border-y border-dashed py-8 text-center'>
@@ -217,14 +218,11 @@ function EmptyQueue() {
         Add a lead, review cold leads, or schedule outreach while the queue is quiet.
       </p>
       <div className='mt-4 flex flex-wrap justify-center gap-2'>
-        <Button asChild size='sm'>
-          <Link href='/leads'>Add Lead</Link>
-        </Button>
         <Button asChild variant='outline' size='sm'>
           <Link href='/leads'>Review Cold Leads</Link>
         </Button>
         <Button asChild variant='outline' size='sm'>
-          <Link href='/settings'>Open Calendar</Link>
+          <Link href='/inbox'>Open Email</Link>
         </Button>
       </div>
     </div>
@@ -269,59 +267,59 @@ export function CommandCenterWorkbench({ actions, pace, sideSlot }: CommandCente
   const followUpActions = visibleActions.filter((action) => action.type === 'follow_up');
 
   return (
-    <div className='grid min-h-0 gap-4 xl:h-[calc(100dvh-7.75rem)] xl:grid-cols-[minmax(0,0.9fr)_340px] xl:overflow-hidden'>
-      <div className='grid min-w-0 gap-3 xl:grid-rows-[auto_minmax(0,1fr)] xl:overflow-hidden'>
-        <section className='flex items-center justify-between gap-3 border-b pb-2'>
-          <div className='min-w-0'>
-            <div className='flex items-center gap-2'>
-              <h2 className='text-base font-semibold'>Priority queue</h2>
-              <Badge
-                variant='secondary'
-                className='rounded-full px-2 font-mono text-[0.62rem] uppercase'
-              >
-                {visibleActions.length}
-              </Badge>
+    <div className='grid w-full min-h-0 gap-4 lg:h-[calc(100dvh-7.75rem)] lg:grid-cols-[minmax(0,1fr)_340px] lg:overflow-hidden'>
+      <div className='grid min-w-0 gap-4 lg:min-h-0 lg:grid-rows-[minmax(0,1fr)_auto] lg:overflow-hidden'>
+        <section className='flex min-h-0 flex-col overflow-hidden rounded-xl border bg-background shadow-xs'>
+          <div className='flex items-center justify-between gap-3 border-b bg-muted/20 px-3 py-2.5'>
+            <div className='min-w-0'>
+              <div className='flex items-center gap-2'>
+                <h2 className='text-base font-semibold'>Priority queue</h2>
+                <Badge
+                  variant='secondary'
+                  className='rounded-full px-2 font-mono text-[0.62rem] uppercase'
+                >
+                  {visibleActions.length}
+                </Badge>
+              </div>
             </div>
+            <PaceStat pace={pace} />
+          </div>
+
+          <div className='min-h-0 overflow-y-auto px-3'>
+            {visibleActions.length > 0 ? (
+              <div>
+                {visibleActions.map((action) => (
+                  <ActionCard
+                    key={action.id}
+                    action={action}
+                    isSelected={selectedActionId === action.id}
+                    onSelect={(nextAction) =>
+                      setSelectedActionId((current) =>
+                        current === nextAction.id ? null : nextAction.id
+                      )
+                    }
+                    onDone={(nextAction) =>
+                      updateActionState(nextAction, {
+                        state: 'done',
+                        dismissReason: 'Handled from command center'
+                      })
+                    }
+                    onSnooze={(nextAction) =>
+                      updateActionState(nextAction, {
+                        state: 'snoozed',
+                        snoozedUntil: snoozeUntilNextMorning(),
+                        dismissReason: 'Snoozed until tomorrow morning'
+                      })
+                    }
+                  />
+                ))}
+              </div>
+            ) : (
+              <EmptyQueue />
+            )}
           </div>
         </section>
 
-        <div className='min-h-0 overflow-hidden'>
-          {visibleActions.length > 0 ? (
-            <div className='divide-y-0'>
-              {visibleActions.map((action) => (
-                <ActionCard
-                  key={action.id}
-                  action={action}
-                  isSelected={selectedActionId === action.id}
-                  onSelect={(nextAction) =>
-                    setSelectedActionId((current) =>
-                      current === nextAction.id ? null : nextAction.id
-                    )
-                  }
-                  onDone={(nextAction) =>
-                    updateActionState(nextAction, {
-                      state: 'done',
-                      dismissReason: 'Handled from command center'
-                    })
-                  }
-                  onSnooze={(nextAction) =>
-                    updateActionState(nextAction, {
-                      state: 'snoozed',
-                      snoozedUntil: snoozeUntilNextMorning(),
-                      dismissReason: 'Snoozed until tomorrow morning'
-                    })
-                  }
-                />
-              ))}
-            </div>
-          ) : (
-            <EmptyQueue />
-          )}
-        </div>
-      </div>
-
-      <aside className='flex min-w-0 flex-col gap-4 xl:min-h-0 xl:overflow-hidden'>
-        {sideSlot}
         <section className='min-h-0'>
           <div className='mb-1 flex items-center justify-between gap-3'>
             <h2 className='text-xs font-semibold uppercase text-muted-foreground'>Focus</h2>
@@ -333,7 +331,10 @@ export function CommandCenterWorkbench({ actions, pace, sideSlot }: CommandCente
             <ActionLine title='Follow-up' actions={followUpActions} />
           </div>
         </section>
-        <PaceLine pace={pace} />
+      </div>
+
+      <aside className='ml-auto flex w-full min-w-0 flex-col gap-4 lg:w-[340px] lg:min-h-0 lg:justify-self-end lg:overflow-hidden'>
+        {sideSlot}
       </aside>
     </div>
   );
