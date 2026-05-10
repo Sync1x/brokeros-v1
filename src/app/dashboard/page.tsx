@@ -1,17 +1,25 @@
 import PageContainer from '@/components/layout/page-container';
 import { GoogleCalendarWidget } from '@/features/calendar/components/google-calendar-widget';
-import { DailyActionFeed } from '@/features/matches/components/daily-action-feed';
+import {
+  getCommandActions,
+  getCommandPace
+} from '@/features/command-center/api/service';
+import { CommandCenterWorkbench } from '@/features/command-center/components/command-center-workbench';
 
 export default function DashboardPage() {
+  const actions = getCommandActions();
+  const pace = getCommandPace();
+
   return (
     <PageContainer
       pageTitle='Command Center'
-      pageDescription='Today’s lead-to-listing actions, ranked by what needs attention.'
+      pageDescription='The next actions that move leads, matches, showings, and deals forward.'
     >
-      <div className='grid min-h-0 flex-1 gap-3 xl:grid-cols-[minmax(0,1fr)_360px]'>
-        <DailyActionFeed />
-        <GoogleCalendarWidget />
-      </div>
+      <CommandCenterWorkbench
+        actions={actions}
+        pace={pace}
+        sideSlot={<GoogleCalendarWidget />}
+      />
     </PageContainer>
   );
 }
