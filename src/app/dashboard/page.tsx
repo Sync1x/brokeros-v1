@@ -8,7 +8,7 @@ export default function DashboardPage() {
   const pace = getCommandPace();
 
   return (
-    <PageContainer pageTitle='Command Center' pageDescription="Today's work, in order.">
+    <PageContainer>
       <CommandCenterWorkbench actions={actions} pace={pace} sideSlot={<GoogleCalendarWidget />} />
     </PageContainer>
   );

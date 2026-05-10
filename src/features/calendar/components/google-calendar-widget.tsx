@@ -150,13 +150,7 @@ function formatTimeRange(event: GoogleCalendarEvent) {
 
   const start = parseEventDate(eventStart(event));
   const end = parseEventDate(eventEnd(event));
-  if (
-    !start ||
-    !end ||
-    Number.isNaN(start.getTime()) ||
-    Number.isNaN(end.getTime())
-  )
-    return 'TBD';
+  if (!start || !end || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 'TBD';
 
   const formatter = new Intl.DateTimeFormat(undefined, {
     hour: 'numeric',
@@ -200,10 +194,8 @@ function sourceLabel(event: GoogleCalendarEvent | null) {
 
 function sortEvents(events: GoogleCalendarEvent[]) {
   return events.toSorted((a, b) => {
-    const aDate =
-      parseEventDate(eventStart(a))?.getTime() ?? Number.MAX_SAFE_INTEGER;
-    const bDate =
-      parseEventDate(eventStart(b))?.getTime() ?? Number.MAX_SAFE_INTEGER;
+    const aDate = parseEventDate(eventStart(a))?.getTime() ?? Number.MAX_SAFE_INTEGER;
+    const bDate = parseEventDate(eventStart(b))?.getTime() ?? Number.MAX_SAFE_INTEGER;
     return aDate - bDate;
   });
 }
@@ -229,6 +221,16 @@ function calendarColor(event: GoogleCalendarEvent) {
   };
 }
 
+function hexToRgba(hex: string, alpha: number) {
+  const normalized = hex.replace('#', '');
+  const value = Number.parseInt(normalized, 16);
+  const red = (value >> 16) & 255;
+  const green = (value >> 8) & 255;
+  const blue = value & 255;
+
+  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
+}
+
 function eventsForDay(events: GoogleCalendarEvent[], day: Date) {
   const dayStart = startOfDay(day);
   const dayEnd = endOfDay(day);
@@ -236,12 +238,7 @@ function eventsForDay(events: GoogleCalendarEvent[], day: Date) {
   return events.filter((event) => {
     const start = parseEventDate(eventStart(event));
     const end = parseEventDate(eventEnd(event));
-    if (
-      !start ||
-      !end ||
-      Number.isNaN(start.getTime()) ||
-      Number.isNaN(end.getTime())
-    ) {
+    if (!start || !end || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
       return false;
     }
 
@@ -263,6 +260,11 @@ const GOOGLE_EVENT_COLOR_FALLBACKS: Record<string, string> = {
   '11': '#dc2127'
 };
 
+const HOUR_HEIGHT = 62;
+const DAY_MINUTES = 24 * 60;
+const TIMELINE_HEIGHT = 24 * HOUR_HEIGHT;
+const EVENT_GUTTER = 10;
+
 function buildDateTime(date: string, time: string) {
   if (!date) return undefined;
   if (!time) return { date };
@@ -272,77 +274,209 @@ function buildDateTime(date: string, time: string) {
   };
 }
 
-function CalendarEventCard({
-  event,
+interface PositionedCalendarEvent {
+  event: GoogleCalendarEvent;
+  top: number;
+  height: number;
+  lane: number;
+  laneCount: number;
+  startMinutes: number;
+  endMinutes: number;
+}
+
+function minutesIntoDay(date: Date) {
+  return date.getHours() * 60 + date.getMinutes();
+}
+
+function eventsOverlap(a: PositionedCalendarEvent, b: PositionedCalendarEvent) {
+  return a.startMinutes < b.endMinutes && b.startMinutes < a.endMinutes;
+}
+
+function positionEventsForDay(events: GoogleCalendarEvent[], day: Date): PositionedCalendarEvent[] {
+  const dayStart = startOfDay(day);
+  const dayEnd = endOfDay(day);
+  const positioned: PositionedCalendarEvent[] = [];
+
+  const timedEvents = events
+    .filter((event) => event.start?.dateTime)
+    .map((event) => {
+      const start = parseEventDate(eventStart(event));
+      const end = parseEventDate(eventEnd(event));
+      if (!start || !end || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+        return null;
+      }
+
+      const clampedStart = new Date(Math.max(start.getTime(), dayStart.getTime()));
+      const clampedEnd = new Date(Math.min(end.getTime(), dayEnd.getTime()));
+      const startMinutes = minutesIntoDay(clampedStart);
+      const endMinutes = Math.max(startMinutes + 15, minutesIntoDay(clampedEnd));
+
+      return {
+        event,
+        startMinutes,
+        endMinutes
+      };
+    })
+    .filter(
+      (
+        item
+      ): item is {
+        event: GoogleCalendarEvent;
+        startMinutes: number;
+        endMinutes: number;
+      } => item !== null
+    )
+    .toSorted((a, b) => {
+      if (a.startMinutes !== b.startMinutes) return a.startMinutes - b.startMinutes;
+      return b.endMinutes - b.startMinutes - (a.endMinutes - a.startMinutes);
+    });
+
+  const laneEnds: number[] = [];
+
+  for (const item of timedEvents) {
+    let lane = laneEnds.findIndex((endMinutes) => endMinutes <= item.startMinutes);
+    if (lane === -1) {
+      lane = laneEnds.length;
+    }
+
+    laneEnds[lane] = item.endMinutes;
+    positioned.push({
+      event: item.event,
+      top: (item.startMinutes / 60) * HOUR_HEIGHT,
+      height: Math.max(24, ((item.endMinutes - item.startMinutes) / 60) * HOUR_HEIGHT - 2),
+      lane,
+      laneCount: 1,
+      startMinutes: item.startMinutes,
+      endMinutes: item.endMinutes
+    });
+  }
+
+  return positioned.map((item) => {
+    const overlapping = positioned.filter((other) => eventsOverlap(item, other));
+    return {
+      ...item,
+      laneCount: Math.max(1, ...overlapping.map((other) => other.lane + 1))
+    };
+  });
+}
+
+function formatCompactEventTime(event: GoogleCalendarEvent) {
+  if (event.start?.date && !event.start.dateTime) return 'All day';
+
+  const start = parseEventDate(eventStart(event));
+  if (!start || Number.isNaN(start.getTime())) return '';
+
+  return new Intl.DateTimeFormat(undefined, {
+    hour: 'numeric',
+    minute: start.getMinutes() === 0 ? undefined : '2-digit'
+  }).format(start);
+}
+
+function CalendarTimelineEvent({
+  item,
   selected,
   onClick
 }: {
-  event: GoogleCalendarEvent;
+  item: PositionedCalendarEvent;
   selected: boolean;
   onClick: () => void;
 }) {
+  const { event, top, height, lane, laneCount } = item;
   const color = calendarColor(event);
-  const eventStyle = { '--event-color': color.background } as CSSProperties;
+  const laneGap = 4;
+  const eventStyle = {
+    top,
+    height,
+    left: `calc(${EVENT_GUTTER}px + ${(lane / laneCount) * 100}% + ${lane ? laneGap / 2 : 0}px)`,
+    width: `calc((100% - ${EVENT_GUTTER + 6}px) / ${laneCount} - ${laneCount > 1 ? laneGap : 0}px)`,
+    backgroundColor: hexToRgba(color.background, 0.16),
+    borderLeftColor: color.background
+  } as CSSProperties;
 
   return (
     <button
       type='button'
       onClick={onClick}
       className={cn(
-        'relative flex w-full items-start gap-3 rounded-lg border bg-background p-3 text-left shadow-xs transition-colors hover:bg-muted/35',
-        selected && 'border-ring ring-2 ring-ring/25'
+        'absolute overflow-hidden rounded-md border border-l-4 px-2 py-1 text-left text-foreground shadow-xs transition hover:brightness-95',
+        selected && 'ring-2 ring-ring/35'
       )}
       style={eventStyle}
       aria-label={`Edit ${event.summary || 'untitled event'}`}
     >
-      <span className='mt-1 block size-2.5 shrink-0 rounded-full bg-[var(--event-color)]' />
-      <div className='min-w-0 flex-1'>
-        <div className='flex items-start justify-between gap-3'>
-          <p className='min-w-0 truncate text-sm font-semibold leading-tight'>
-            {event.summary || 'Untitled event'}
-          </p>
-          <span className='shrink-0 font-mono text-[0.66rem] text-muted-foreground uppercase'>
-            {formatTimeRange(event)}
-          </span>
-        </div>
-        <p className='mt-1 truncate text-xs text-muted-foreground'>
-          {event.location || event.calendarSummary || 'Google Calendar'}
+      <p className='truncate text-xs font-semibold leading-tight'>
+        {event.summary || 'Untitled event'}, {formatCompactEventTime(event)}
+      </p>
+      {height > 42 && (
+        <p className='mt-0.5 line-clamp-2 text-[0.68rem] leading-tight text-muted-foreground'>
+          {formatTimeRange(event)}
         </p>
-      </div>
+      )}
     </button>
   );
 }
 
-function TodayEventList({
+function CalendarDayTimeline({
   events,
+  today,
   selectedEventKey,
   onEventClick
 }: {
   events: GoogleCalendarEvent[];
+  today: Date;
   selectedEventKey?: string;
   onEventClick: (event: GoogleCalendarEvent) => void;
 }) {
+  const positionedEvents = useMemo(() => positionEventsForDay(events, today), [events, today]);
+  const now = new Date();
+  const isToday = isSameDay(today, now);
+  const currentTop = (minutesIntoDay(now) / DAY_MINUTES) * TIMELINE_HEIGHT;
+
   if (events.length === 0) {
     return (
-      <div className='rounded-lg border border-dashed bg-muted/20 px-3 py-8 text-center'>
+      <div className='m-3 rounded-lg border border-dashed bg-muted/20 px-3 py-8 text-center'>
         <p className='text-sm font-medium'>No events today</p>
-        <p className='mt-1 text-xs text-muted-foreground'>
-          Your calendar is clear for the day.
-        </p>
+        <p className='mt-1 text-xs text-muted-foreground'>Your calendar is clear for the day.</p>
       </div>
     );
   }
 
   return (
-    <div className='flex flex-col gap-2.5'>
-      {events.map((event) => (
-        <CalendarEventCard
-          key={eventKey(event)}
-          event={event}
-          selected={selectedEventKey === eventKey(event)}
-          onClick={() => onEventClick(event)}
-        />
-      ))}
+    <div className='min-h-0 flex-1 overflow-y-auto bg-background'>
+      <div
+        className='relative mx-3 my-2 overflow-hidden rounded-lg border border-border/80 bg-background'
+        style={{ height: TIMELINE_HEIGHT }}
+      >
+        {Array.from({ length: 24 }).map((_, hour) => (
+          <div
+            key={hour}
+            className='relative border-t border-border/80 first:border-t-0'
+            style={{ height: HOUR_HEIGHT }}
+          >
+            <span className='absolute left-0 right-0 top-1/2 border-t border-dashed border-border/30' />
+          </div>
+        ))}
+
+        <div className='absolute inset-x-0 top-0'>
+          {positionedEvents.map((item) => (
+            <CalendarTimelineEvent
+              key={eventKey(item.event)}
+              item={item}
+              selected={selectedEventKey === eventKey(item.event)}
+              onClick={() => onEventClick(item.event)}
+            />
+          ))}
+        </div>
+
+        {isToday && (
+          <div
+            className='pointer-events-none absolute left-0 right-0 z-20 h-0.5 bg-red-500'
+            style={{ top: currentTop }}
+          >
+            <span className='absolute -left-1.5 -top-1.5 size-3 rounded-full bg-red-500' />
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -350,11 +484,10 @@ function TodayEventList({
 export function GoogleCalendarWidget() {
   const [data, setData] = useState<EventsResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedEvent, setSelectedEvent] =
-    useState<GoogleCalendarEvent | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<GoogleCalendarEvent | null>(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
-  const [editableEventForm, setEditableEventForm] = useState<EventEditForm>(
-    () => formFromEvent({ id: '' })
+  const [editableEventForm, setEditableEventForm] = useState<EventEditForm>(() =>
+    formFromEvent({ id: '' })
   );
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -365,8 +498,7 @@ export function GoogleCalendarWidget() {
     async function loadEvents() {
       const response = await fetch('/api/google-calendar/events');
       const nextData = (await response.json()) as EventsResponse;
-      if (!cancelled)
-        setData({ ...nextData, events: sortEvents(nextData.events ?? []) });
+      if (!cancelled) setData({ ...nextData, events: sortEvents(nextData.events ?? []) });
     }
 
     void loadEvents()
@@ -375,10 +507,7 @@ export function GoogleCalendarWidget() {
           setData({
             connected: true,
             events: [],
-            error:
-              loadError instanceof Error
-                ? loadError.message
-                : 'Unable to load calendar events'
+            error: loadError instanceof Error ? loadError.message : 'Unable to load calendar events'
           });
         }
       })
@@ -428,10 +557,7 @@ export function GoogleCalendarWidget() {
     setIsSaving(true);
     setError(null);
 
-    const start = buildDateTime(
-      editableEventForm.startDate,
-      editableEventForm.startTime
-    );
+    const start = buildDateTime(editableEventForm.startDate, editableEventForm.startTime);
     const end = buildDateTime(
       editableEventForm.endDate || editableEventForm.startDate,
       editableEventForm.endTime
@@ -482,20 +608,15 @@ export function GoogleCalendarWidget() {
                 ? {
                     ...event,
                     ...updatedEvent,
-                    calendarSummary:
-                      updatedEvent.calendarSummary ?? event.calendarSummary,
+                    calendarSummary: updatedEvent.calendarSummary ?? event.calendarSummary,
                     calendarBackgroundColor:
-                      updatedEvent.calendarBackgroundColor ??
-                      event.calendarBackgroundColor,
+                      updatedEvent.calendarBackgroundColor ?? event.calendarBackgroundColor,
                     calendarForegroundColor:
-                      updatedEvent.calendarForegroundColor ??
-                      event.calendarForegroundColor,
+                      updatedEvent.calendarForegroundColor ?? event.calendarForegroundColor,
                     eventBackgroundColor:
-                      updatedEvent.eventBackgroundColor ??
-                      event.eventBackgroundColor,
+                      updatedEvent.eventBackgroundColor ?? event.eventBackgroundColor,
                     eventForegroundColor:
-                      updatedEvent.eventForegroundColor ??
-                      event.eventForegroundColor
+                      updatedEvent.eventForegroundColor ?? event.eventForegroundColor
                   }
                 : event
             )
@@ -504,11 +625,7 @@ export function GoogleCalendarWidget() {
       });
       closeEventEditor();
     } catch (saveError) {
-      setError(
-        saveError instanceof Error
-          ? saveError.message
-          : 'Unable to save calendar event'
-      );
+      setError(saveError instanceof Error ? saveError.message : 'Unable to save calendar event');
     } finally {
       setIsSaving(false);
     }
@@ -546,18 +663,12 @@ export function GoogleCalendarWidget() {
         if (!current) return current;
         return {
           ...current,
-          events: current.events.filter(
-            (event) => eventKey(event) !== eventKey(selectedEvent)
-          )
+          events: current.events.filter((event) => eventKey(event) !== eventKey(selectedEvent))
         };
       });
       closeEventEditor();
     } catch (deleteError) {
-      setError(
-        deleteError instanceof Error
-          ? deleteError.message
-          : 'Unable to delete event'
-      );
+      setError(deleteError instanceof Error ? deleteError.message : 'Unable to delete event');
     } finally {
       setIsSaving(false);
     }
@@ -565,13 +676,10 @@ export function GoogleCalendarWidget() {
 
   return (
     <>
-      <section className='flex flex-col rounded-xl border bg-background shadow-xs'>
+      <section className='flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border bg-background shadow-xs'>
         <div className='flex items-center justify-between border-b bg-muted/20 px-3 py-2.5'>
           <div className='min-w-0'>
             <h2 className='text-sm font-semibold'>Calendar</h2>
-            <p className='mt-0.5 text-xs text-muted-foreground'>
-              Today at a glance
-            </p>
           </div>
           <Button variant='outline' size='icon' aria-label='Calendar widget'>
             <Icons.calendar />
@@ -591,8 +699,7 @@ export function GoogleCalendarWidget() {
           <div className='p-3'>
             <p className='text-sm font-medium'>Connect Google Calendar</p>
             <p className='mt-1 text-xs text-muted-foreground'>
-              Add your calendar in Settings to show meetings beside the action
-              feed.
+              Add your calendar in Settings to show meetings beside the action feed.
             </p>
             <Button asChild size='sm' className='mt-3'>
               <Link href='/settings'>Open Settings</Link>
@@ -602,34 +709,28 @@ export function GoogleCalendarWidget() {
 
         {!isLoading && data?.error && (
           <div className='border-b p-3'>
-            <p className='text-sm font-medium text-destructive'>
-              Calendar unavailable
-            </p>
+            <p className='text-sm font-medium text-destructive'>Calendar unavailable</p>
             <p className='mt-1 text-xs text-muted-foreground'>{data.error}</p>
           </div>
         )}
 
         {!isLoading && data?.connected && !data.error && (
-          <div className='flex flex-col gap-3 p-3'>
-            <div className='rounded-lg border bg-muted/15 px-3 py-3'>
-              <div className='flex items-start justify-between gap-3'>
-                <div className='min-w-0'>
-                  <p className='truncate text-sm font-semibold'>{todayLabel}</p>
-                  <p className='mt-0.5 text-xs text-muted-foreground'>
-                    12:00 AM - 11:59 PM
-                  </p>
-                </div>
-                <span className='shrink-0 font-mono text-[0.68rem] text-muted-foreground uppercase'>
+          <div className='flex min-h-0 flex-1 flex-col'>
+            <div className='border-b px-3 py-2'>
+              <div className='flex items-center justify-between gap-3'>
+                <p className='truncate text-xs font-semibold uppercase text-muted-foreground'>
+                  {todayLabel}
+                </p>
+                <span className='shrink-0 rounded-full bg-muted px-2 py-0.5 font-mono text-[0.68rem] text-muted-foreground uppercase'>
                   {todayCountLabel}
                 </span>
               </div>
             </div>
 
-            <TodayEventList
+            <CalendarDayTimeline
               events={todayEvents}
-              selectedEventKey={
-                selectedEvent ? eventKey(selectedEvent) : undefined
-              }
+              today={today}
+              selectedEventKey={selectedEvent ? eventKey(selectedEvent) : undefined}
               onEventClick={openEventEditor}
             />
           </div>
@@ -648,9 +749,7 @@ export function GoogleCalendarWidget() {
             <SheetTitle className='text-sm'>Edit Event</SheetTitle>
             <SheetDescription className='text-xs'>
               {selectedEvent?.calendarSummary || sourceLabel(selectedEvent)} ·{' '}
-              {selectedEvent
-                ? formatEventDay(selectedEvent)
-                : 'Google Calendar'}
+              {selectedEvent ? formatEventDay(selectedEvent) : 'Google Calendar'}
             </SheetDescription>
           </SheetHeader>
 
@@ -658,100 +757,72 @@ export function GoogleCalendarWidget() {
             <FieldSet>
               <FieldGroup className='gap-4'>
                 <Field>
-                  <FieldLabel htmlFor='calendar-event-title'>
-                    Event title
-                  </FieldLabel>
+                  <FieldLabel htmlFor='calendar-event-title'>Event title</FieldLabel>
                   <Input
                     id='calendar-event-title'
                     value={editableEventForm.title}
-                    onChange={(event) =>
-                      handleEventFieldChange('title', event.target.value)
-                    }
+                    onChange={(event) => handleEventFieldChange('title', event.target.value)}
                   />
                 </Field>
 
                 <div className='grid gap-3 sm:grid-cols-2'>
                   <Field>
-                    <FieldLabel htmlFor='calendar-event-start-date'>
-                      Start date
-                    </FieldLabel>
+                    <FieldLabel htmlFor='calendar-event-start-date'>Start date</FieldLabel>
                     <Input
                       id='calendar-event-start-date'
                       type='date'
                       value={editableEventForm.startDate}
-                      onChange={(event) =>
-                        handleEventFieldChange('startDate', event.target.value)
-                      }
+                      onChange={(event) => handleEventFieldChange('startDate', event.target.value)}
                     />
                   </Field>
                   <Field>
-                    <FieldLabel htmlFor='calendar-event-start-time'>
-                      Start time
-                    </FieldLabel>
+                    <FieldLabel htmlFor='calendar-event-start-time'>Start time</FieldLabel>
                     <Input
                       id='calendar-event-start-time'
                       type='time'
                       value={editableEventForm.startTime}
-                      onChange={(event) =>
-                        handleEventFieldChange('startTime', event.target.value)
-                      }
+                      onChange={(event) => handleEventFieldChange('startTime', event.target.value)}
                     />
                   </Field>
                 </div>
 
                 <div className='grid gap-3 sm:grid-cols-2'>
                   <Field>
-                    <FieldLabel htmlFor='calendar-event-end-date'>
-                      End date
-                    </FieldLabel>
+                    <FieldLabel htmlFor='calendar-event-end-date'>End date</FieldLabel>
                     <Input
                       id='calendar-event-end-date'
                       type='date'
                       value={editableEventForm.endDate}
-                      onChange={(event) =>
-                        handleEventFieldChange('endDate', event.target.value)
-                      }
+                      onChange={(event) => handleEventFieldChange('endDate', event.target.value)}
                     />
                   </Field>
                   <Field>
-                    <FieldLabel htmlFor='calendar-event-end-time'>
-                      End time
-                    </FieldLabel>
+                    <FieldLabel htmlFor='calendar-event-end-time'>End time</FieldLabel>
                     <Input
                       id='calendar-event-end-time'
                       type='time'
                       value={editableEventForm.endTime}
-                      onChange={(event) =>
-                        handleEventFieldChange('endTime', event.target.value)
-                      }
+                      onChange={(event) => handleEventFieldChange('endTime', event.target.value)}
                     />
                   </Field>
                 </div>
 
                 <Field>
-                  <FieldLabel htmlFor='calendar-event-location'>
-                    Location
-                  </FieldLabel>
+                  <FieldLabel htmlFor='calendar-event-location'>Location</FieldLabel>
                   <Input
                     id='calendar-event-location'
                     value={editableEventForm.location}
-                    onChange={(event) =>
-                      handleEventFieldChange('location', event.target.value)
-                    }
+                    onChange={(event) => handleEventFieldChange('location', event.target.value)}
                   />
                 </Field>
 
                 <Field>
-                  <FieldLabel htmlFor='calendar-event-description'>
-                    Description
-                  </FieldLabel>
+                  <FieldLabel htmlFor='calendar-event-description'>Description</FieldLabel>
                   <Textarea
                     id='calendar-event-description'
                     className='min-h-24 resize-none'
                     value={editableEventForm.description}
-                    onChange={(event) =>
-                      handleEventFieldChange('description', event.target.value)
-                    }
+                    onChange={(event) => handleEventFieldChange('description', event.target.value)}
                   />
                 </Field>
               </FieldGroup>
@@ -784,11 +855,7 @@ export function GoogleCalendarWidget() {
               >
                 Cancel
               </Button>
-              <Button
-                type='button'
-                isLoading={isSaving}
-                onClick={saveEventChanges}
-              >
+              <Button type='button' isLoading={isSaving} onClick={saveEventChanges}>
                 Save
               </Button>
             </div>
