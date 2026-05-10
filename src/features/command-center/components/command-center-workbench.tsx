@@ -182,14 +182,14 @@ function ActionCard({
   );
 }
 
-function PaceStat({ pace }: { pace: CommandPace }) {
+function ContactsStat({ pace }: { pace: CommandPace }) {
   return (
-    <div className='text-right'>
+    <section className='rounded-lg border bg-background px-3 py-2 text-right shadow-xs'>
       <p className='text-[0.65rem] font-medium text-muted-foreground uppercase'>Contacts made</p>
       <p className='mt-0.5 font-mono text-sm font-semibold'>
         {pace.contactsToday} today / {pace.contactsThisWeek} this week
       </p>
-    </div>
+    </section>
   );
 }
 
@@ -267,7 +267,7 @@ export function CommandCenterWorkbench({ actions, pace, sideSlot }: CommandCente
   const followUpActions = visibleActions.filter((action) => action.type === 'follow_up');
 
   return (
-    <div className='grid w-full min-h-0 gap-4 lg:h-[calc(100dvh-7.75rem)] lg:grid-cols-[minmax(0,1fr)_340px] lg:overflow-hidden'>
+    <div className='grid w-full min-h-0 gap-4 lg:h-[calc(100dvh-4.75rem)] lg:grid-cols-[minmax(0,1fr)_340px] lg:overflow-hidden'>
       <div className='grid min-w-0 gap-4 lg:min-h-0 lg:grid-rows-[minmax(0,1fr)_auto] lg:overflow-hidden'>
         <section className='flex min-h-0 flex-col overflow-hidden rounded-xl border bg-background shadow-xs'>
           <div className='flex items-center justify-between gap-3 border-b bg-muted/20 px-3 py-2.5'>
@@ -282,7 +282,6 @@ export function CommandCenterWorkbench({ actions, pace, sideSlot }: CommandCente
                 </Badge>
               </div>
             </div>
-            <PaceStat pace={pace} />
           </div>
 
           <div className='min-h-0 overflow-y-auto px-3'>
@@ -333,7 +332,8 @@ export function CommandCenterWorkbench({ actions, pace, sideSlot }: CommandCente
         </section>
       </div>
 
-      <aside className='ml-auto flex w-full min-w-0 flex-col gap-4 lg:w-[340px] lg:min-h-0 lg:justify-self-end lg:overflow-hidden'>
+      <aside className='ml-auto flex w-full min-w-0 flex-col gap-3 lg:w-[340px] lg:min-h-0 lg:justify-self-end lg:overflow-hidden'>
+        <ContactsStat pace={pace} />
         {sideSlot}
       </aside>
     </div>
