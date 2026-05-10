@@ -7,11 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Icons } from '@/components/icons';
 import { cn } from '@/lib/utils';
-import type {
-  CommandAction,
-  CommandActionState,
-  CommandPace
-} from '../api/types';
+import type { CommandAction, CommandActionState, CommandPace } from '../api/types';
 
 const STORAGE_KEY = 'brokeros:command-center-action-state';
 
@@ -31,19 +27,19 @@ interface CommandCenterWorkbenchProps {
 }
 
 const typeLabels: Record<CommandAction['type'], string> = {
-  new_lead: 'Speed-to-lead',
+  new_lead: 'Lead',
   follow_up: 'Follow-up',
-  match_ready: 'Ready to send',
-  showing_prep: 'Showing prep',
-  deal_blocker: 'Deal blocker',
-  seller_launch: 'Seller launch',
-  offer_task: 'Offer task'
+  match_ready: 'Ready',
+  showing_prep: 'Showing',
+  deal_blocker: 'Blocker',
+  seller_launch: 'Seller',
+  offer_task: 'Offer'
 };
 
 function priorityClass(priority: CommandAction['priority']) {
-  if (priority === 'critical') return 'border-destructive/40 text-destructive';
-  if (priority === 'high') return 'border-primary/35 text-primary';
-  return 'border-muted-foreground/30 text-muted-foreground';
+  if (priority === 'critical') return 'text-destructive';
+  if (priority === 'high') return 'text-primary';
+  return 'text-muted-foreground';
 }
 
 function readStoredState() {
@@ -62,10 +58,7 @@ function writeStoredState(state: StoredActionState) {
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 
-function mergeActionState(
-  action: CommandAction,
-  storedState: StoredActionState
-): CommandAction {
+function mergeActionState(action: CommandAction, storedState: StoredActionState): CommandAction {
   const saved = storedState[action.id];
   if (!saved) return action;
 
@@ -93,89 +86,50 @@ function snoozeUntilNextMorning() {
 
 function ActionCard({
   action,
+  isSelected,
+  onSelect,
   onDone,
   onSnooze
 }: {
   action: CommandAction;
+  isSelected: boolean;
+  onSelect: (action: CommandAction) => void;
   onDone: (action: CommandAction) => void;
   onSnooze: (action: CommandAction) => void;
 }) {
   return (
-    <article className='rounded-xl border bg-background p-3 shadow-xs'>
-      <div className='flex items-start justify-between gap-3'>
-        <div className='min-w-0'>
-          <div className='flex flex-wrap items-center gap-2'>
-            <Badge
-              variant='outline'
-              className={cn(
-                'rounded-md font-mono text-[0.62rem] uppercase',
-                priorityClass(action.priority)
-              )}
-            >
-              {action.priority}
-            </Badge>
-            <span className='font-mono text-[0.66rem] text-muted-foreground uppercase'>
-              {typeLabels[action.type]}
-            </span>
-          </div>
-          <h3 className='mt-2 text-sm font-semibold leading-tight'>
+    <article className='border-b py-2 last:border-b-0'>
+      <div className='grid gap-2 md:grid-cols-[minmax(0,1fr)_auto] md:items-center md:gap-3'>
+        <button
+          type='button'
+          onClick={() => onSelect(action)}
+          className='min-w-0 text-left'
+          aria-expanded={isSelected}
+        >
+          <h3
+            className={cn(
+              'truncate text-sm font-semibold leading-tight transition-colors hover:text-primary',
+              isSelected && 'text-primary'
+            )}
+          >
             {action.title}
           </h3>
-          <p className='mt-1 text-xs text-muted-foreground'>{action.whyNow}</p>
-        </div>
-        <div className='shrink-0 text-right'>
-          <p className='font-mono text-[0.64rem] text-muted-foreground uppercase'>
-            Due
-          </p>
-          <p className='mt-1 font-mono text-xs font-medium'>
-            {action.dueAt ?? 'Today'}
-          </p>
-        </div>
-      </div>
+        </button>
 
-      <div className='mt-3 rounded-lg border bg-muted/15 px-3 py-2'>
-        <p className='font-mono text-[0.62rem] text-muted-foreground uppercase'>
-          Next action
-        </p>
-        <p className='mt-1 text-xs font-medium'>{action.nextAction}</p>
-      </div>
-
-      <div className='mt-3 flex flex-wrap gap-1.5'>
-        {action.sourceFacts.map((fact) => (
-          <span
-            key={fact}
-            className='rounded-md border bg-background px-2 py-1 text-[0.68rem] text-muted-foreground'
-          >
-            {fact}
-          </span>
-        ))}
-      </div>
-
-      <div className='mt-3 flex flex-wrap items-center justify-between gap-2 border-t pt-3'>
-        <div className='flex flex-wrap gap-2'>
-          <Button asChild size='sm'>
-            <Link href={action.primaryHref}>{action.primaryCtaLabel}</Link>
-          </Button>
-          {action.secondaryHref && action.secondaryCtaLabel && (
-            <Button asChild variant='outline' size='sm'>
-              <Link href={action.secondaryHref}>
-                {action.secondaryCtaLabel}
-              </Link>
-            </Button>
-          )}
-        </div>
-        <div className='flex gap-1.5'>
+        <div className='flex gap-1'>
           <Button
             variant='ghost'
             size='sm'
+            className='h-8 px-2 text-muted-foreground'
             type='button'
             onClick={() => onSnooze(action)}
           >
             Snooze
           </Button>
           <Button
-            variant='outline'
+            variant='ghost'
             size='sm'
+            className='h-8 px-2 text-muted-foreground'
             type='button'
             onClick={() => onDone(action)}
           >
@@ -183,101 +137,84 @@ function ActionCard({
           </Button>
         </div>
       </div>
+
+      {isSelected && (
+        <div className='mt-2 rounded-lg bg-muted/30 px-3 py-2.5'>
+          <div className='flex flex-wrap items-center gap-2'>
+            <span className='font-mono text-sm font-semibold'>
+              {action.contactPhone ?? 'No phone on file'}
+            </span>
+            {action.contactEmail ? (
+              <Button asChild size='sm' variant='outline' className='h-7 px-2.5'>
+                <a href={`mailto:${action.contactEmail}`}>Email</a>
+              </Button>
+            ) : (
+              <Button size='sm' variant='outline' className='h-7 px-2.5' disabled>
+                Email
+              </Button>
+            )}
+            <span
+              className={cn(
+                'font-mono text-[0.62rem] font-semibold uppercase',
+                priorityClass(action.priority)
+              )}
+            >
+              {action.priority}
+            </span>
+            <span className='font-mono text-[0.62rem] text-muted-foreground uppercase'>
+              {typeLabels[action.type]} / {action.dueAt ?? 'Today'}
+            </span>
+          </div>
+          <p className='mt-2 text-xs font-medium'>{action.nextAction}</p>
+          <p className='mt-1 text-xs text-muted-foreground'>{action.whyNow}</p>
+          <div className='mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[0.68rem] text-muted-foreground'>
+            {action.sourceFacts.map((fact) => (
+              <span key={fact}>{fact}</span>
+            ))}
+          </div>
+        </div>
+      )}
     </article>
   );
 }
 
-function ActionWidget({
-  title,
-  description,
-  actions
-}: {
-  title: string;
-  description: string;
-  actions: CommandAction[];
-}) {
+function ActionLine({ title, actions }: { title: string; actions: CommandAction[] }) {
+  const preview = actions
+    .slice(0, 2)
+    .map((action) => action.personName)
+    .join(', ');
+
   return (
-    <section className='rounded-xl border bg-background shadow-xs'>
-      <div className='border-b bg-muted/20 px-3 py-2.5'>
-        <div className='flex items-center justify-between gap-3'>
-          <div className='min-w-0'>
-            <h2 className='text-sm font-semibold'>{title}</h2>
-            <p className='mt-0.5 text-xs text-muted-foreground'>
-              {description}
-            </p>
-          </div>
-          <span className='font-mono text-xs text-muted-foreground'>
-            {actions.length}
-          </span>
-        </div>
+    <div className='grid grid-cols-[8rem_minmax(0,1fr)_auto] items-center gap-3 border-b py-2 last:border-b-0'>
+      <p className='truncate text-xs font-medium'>{title}</p>
+      <p className='truncate text-xs text-muted-foreground'>{preview || 'Clear'}</p>
+      <div className='flex size-6 items-center justify-center rounded-full bg-muted text-[0.68rem] font-medium'>
+        {actions.length}
       </div>
-      <div className='flex flex-col gap-2 p-3'>
-        {actions.length > 0 ? (
-          actions.slice(0, 3).map((action) => (
-            <Link
-              key={action.id}
-              href={action.primaryHref}
-              className='rounded-lg border px-3 py-2 transition-colors hover:bg-muted/35'
-            >
-              <p className='truncate text-xs font-semibold'>{action.title}</p>
-              <p className='mt-1 line-clamp-2 text-xs text-muted-foreground'>
-                {action.whyNow}
-              </p>
-            </Link>
-          ))
-        ) : (
-          <p className='rounded-lg border border-dashed bg-muted/20 px-3 py-4 text-center text-xs text-muted-foreground'>
-            Nothing urgent here.
-          </p>
-        )}
-      </div>
-    </section>
+    </div>
   );
 }
 
-function PaceCard({ pace }: { pace: CommandPace }) {
+function PaceLine({ pace }: { pace: CommandPace }) {
   return (
-    <section className='rounded-xl border bg-background p-3 shadow-xs'>
-      <div className='flex items-start justify-between gap-3'>
-        <div>
-          <p className='text-sm font-semibold'>{pace.label}</p>
-          <p className='mt-1 text-xs text-muted-foreground'>
-            Keep outreach moving without turning this into analytics.
-          </p>
-        </div>
-        <Icons.phone className='mt-0.5 text-muted-foreground' />
+    <section className='border-t pt-3'>
+      <div className='flex items-center justify-between gap-3'>
+        <p className='text-xs font-medium'>{pace.label}</p>
+        <Icons.phone className='size-4 text-muted-foreground' />
       </div>
-      <div className='mt-3 grid grid-cols-2 gap-2'>
-        <div className='rounded-lg border bg-muted/15 px-3 py-2'>
-          <p className='font-mono text-xl font-semibold'>
-            {pace.contactsToday}
-          </p>
-          <p className='text-[0.68rem] text-muted-foreground uppercase'>
-            Today
-          </p>
-        </div>
-        <div className='rounded-lg border bg-muted/15 px-3 py-2'>
-          <p className='font-mono text-xl font-semibold'>
-            {pace.contactsThisWeek}
-          </p>
-          <p className='text-[0.68rem] text-muted-foreground uppercase'>
-            This week
-          </p>
-        </div>
-      </div>
+      <p className='mt-1 font-mono text-xs text-muted-foreground'>
+        {pace.contactsToday} today / {pace.contactsThisWeek} this week
+      </p>
     </section>
   );
 }
 
 function EmptyQueue() {
   return (
-    <div className='rounded-xl border border-dashed bg-muted/20 p-6 text-center'>
-      <p className='text-sm font-semibold'>
-        Nothing urgent. Good time to prospect.
-      </p>
+    <div className='border-y border-dashed py-8 text-center'>
+      <p className='text-sm font-semibold'>Nothing urgent. Good time to prospect.</p>
       <p className='mt-1 text-xs text-muted-foreground'>
-        Add a lead, review cold leads, or schedule outreach while the queue is
-        quiet.
+        Add a lead, review cold leads, or schedule outreach while the queue is quiet.
       </p>
       <div className='mt-4 flex flex-wrap justify-center gap-2'>
         <Button asChild size='sm'>
@@ -294,21 +231,15 @@ function EmptyQueue() {
   );
 }
 
-export function CommandCenterWorkbench({
-  actions,
-  pace,
-  sideSlot
-}: CommandCenterWorkbenchProps) {
+export function CommandCenterWorkbench({ actions, pace, sideSlot }: CommandCenterWorkbenchProps) {
   const [storedState, setStoredState] = useState<StoredActionState>({});
+  const [selectedActionId, setSelectedActionId] = useState<string | null>(null);
 
   useEffect(() => {
     setStoredState(readStoredState());
   }, []);
 
-  function updateActionState(
-    action: CommandAction,
-    value: StoredActionState[string]
-  ) {
+  function updateActionState(action: CommandAction, value: StoredActionState[string]) {
     setStoredState((current) => {
       const next = {
         ...current,
@@ -326,47 +257,47 @@ export function CommandCenterWorkbench({
       .filter((action) => isVisibleAction(action, now));
   }, [actions, storedState]);
 
-  const speedToLeadActions = visibleActions.filter(
-    (action) => action.type === 'new_lead'
-  );
-  const readyToSendActions = visibleActions.filter(
-    (action) => action.type === 'match_ready'
-  );
-  const blockerActions = visibleActions.filter(
-    (action) => action.type === 'deal_blocker'
-  );
-  const followUpActions = visibleActions.filter(
-    (action) => action.type === 'follow_up'
-  );
+  useEffect(() => {
+    if (selectedActionId && !visibleActions.some((action) => action.id === selectedActionId)) {
+      setSelectedActionId(null);
+    }
+  }, [selectedActionId, visibleActions]);
+
+  const speedToLeadActions = visibleActions.filter((action) => action.type === 'new_lead');
+  const readyToSendActions = visibleActions.filter((action) => action.type === 'match_ready');
+  const blockerActions = visibleActions.filter((action) => action.type === 'deal_blocker');
+  const followUpActions = visibleActions.filter((action) => action.type === 'follow_up');
 
   return (
-    <div className='grid min-h-0 gap-3 xl:grid-cols-[minmax(0,1fr)_360px]'>
-      <div className='flex min-w-0 flex-col gap-3'>
-        <section className='rounded-xl border bg-background shadow-xs'>
-          <div className='border-b bg-muted/20 px-3 py-3'>
-            <div className='flex items-start justify-between gap-3'>
-              <div>
-                <h2 className='text-base font-semibold'>
-                  Priority Action Queue
-                </h2>
-                <p className='mt-1 text-xs text-muted-foreground'>
-                  Ranked by urgency, decay risk, deal value, and recency.
-                </p>
-              </div>
+    <div className='grid min-h-0 gap-4 xl:h-[calc(100dvh-7.75rem)] xl:grid-cols-[minmax(0,0.9fr)_340px] xl:overflow-hidden'>
+      <div className='grid min-w-0 gap-3 xl:grid-rows-[auto_minmax(0,1fr)] xl:overflow-hidden'>
+        <section className='flex items-center justify-between gap-3 border-b pb-2'>
+          <div className='min-w-0'>
+            <div className='flex items-center gap-2'>
+              <h2 className='text-base font-semibold'>Priority queue</h2>
               <Badge
-                variant='outline'
-                className='rounded-md font-mono text-[0.65rem] uppercase'
+                variant='secondary'
+                className='rounded-full px-2 font-mono text-[0.62rem] uppercase'
               >
-                {visibleActions.length} active
+                {visibleActions.length}
               </Badge>
             </div>
           </div>
-          <div className='flex flex-col gap-3 p-3'>
-            {visibleActions.length > 0 ? (
-              visibleActions.map((action) => (
+        </section>
+
+        <div className='min-h-0 overflow-hidden'>
+          {visibleActions.length > 0 ? (
+            <div className='divide-y-0'>
+              {visibleActions.map((action) => (
                 <ActionCard
                   key={action.id}
                   action={action}
+                  isSelected={selectedActionId === action.id}
+                  onSelect={(nextAction) =>
+                    setSelectedActionId((current) =>
+                      current === nextAction.id ? null : nextAction.id
+                    )
+                  }
                   onDone={(nextAction) =>
                     updateActionState(nextAction, {
                       state: 'done',
@@ -381,40 +312,28 @@ export function CommandCenterWorkbench({
                     })
                   }
                 />
-              ))
-            ) : (
-              <EmptyQueue />
-            )}
-          </div>
-        </section>
-
-        <div className='grid gap-3 lg:grid-cols-2'>
-          <ActionWidget
-            title='Speed-to-Lead'
-            description='Fresh or neglected people to contact now.'
-            actions={speedToLeadActions}
-          />
-          <ActionWidget
-            title='Ready to Send'
-            description='Matches that are clean enough to preview.'
-            actions={readyToSendActions}
-          />
-          <ActionWidget
-            title='Deal Blockers'
-            description='Missing items stopping movement.'
-            actions={blockerActions}
-          />
-          <ActionWidget
-            title='Follow-Up Cadence'
-            description='People who need a specific reason to hear from you.'
-            actions={followUpActions}
-          />
+              ))}
+            </div>
+          ) : (
+            <EmptyQueue />
+          )}
         </div>
       </div>
 
-      <aside className='flex min-w-0 flex-col gap-3'>
+      <aside className='flex min-w-0 flex-col gap-4 xl:min-h-0 xl:overflow-hidden'>
         {sideSlot}
-        <PaceCard pace={pace} />
+        <section className='min-h-0'>
+          <div className='mb-1 flex items-center justify-between gap-3'>
+            <h2 className='text-xs font-semibold uppercase text-muted-foreground'>Focus</h2>
+          </div>
+          <div>
+            <ActionLine title='Speed-to-lead' actions={speedToLeadActions} />
+            <ActionLine title='Ready to send' actions={readyToSendActions} />
+            <ActionLine title='Blockers' actions={blockerActions} />
+            <ActionLine title='Follow-up' actions={followUpActions} />
+          </div>
+        </section>
+        <PaceLine pace={pace} />
       </aside>
     </div>
   );

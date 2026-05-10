@@ -27,9 +27,7 @@ function hasNeedsReviewDocument(documents: BrokerDocument[]) {
 }
 
 function hasBuyerAgreement(lead: Lead) {
-  return documentsForClient(lead.name).some(
-    (document) => document.type === 'Agreement'
-  );
+  return documentsForClient(lead.name).some((document) => document.type === 'Agreement');
 }
 
 function hasProofOfFundsOrPreapproval(lead: Lead) {
@@ -37,9 +35,7 @@ function hasProofOfFundsOrPreapproval(lead: Lead) {
 }
 
 function isListingReady(listing: Listing) {
-  return READY_LISTING_STATUSES.includes(
-    listing.status as (typeof READY_LISTING_STATUSES)[number]
-  );
+  return READY_LISTING_STATUSES.includes(listing.status as (typeof READY_LISTING_STATUSES)[number]);
 }
 
 function isReadyMatch(match: Match, lead: Lead, listing: Listing) {
@@ -53,16 +49,11 @@ function isReadyMatch(match: Match, lead: Lead, listing: Listing) {
 
 function matchBlocker(match: Match, lead: Lead, listing: Listing) {
   const documents = documentsForClient(lead.name);
-  if (match.status === 'Review')
-    return 'Match is marked for review before sending.';
-  if (hasNeedsReviewDocument(documents))
-    return 'A related document still needs review.';
-  if (!hasBuyerAgreement(lead))
-    return 'Buyer agreement is not confirmed before tour outreach.';
-  if (!hasProofOfFundsOrPreapproval(lead))
-    return 'Proof of funds or preapproval is not confirmed.';
-  if (!isListingReady(listing))
-    return `${listing.address} is ${listing.status.toLowerCase()}.`;
+  if (match.status === 'Review') return 'Match is marked for review before sending.';
+  if (hasNeedsReviewDocument(documents)) return 'A related document still needs review.';
+  if (!hasBuyerAgreement(lead)) return 'Buyer agreement is not confirmed before tour outreach.';
+  if (!hasProofOfFundsOrPreapproval(lead)) return 'Proof of funds or preapproval is not confirmed.';
+  if (!isListingReady(listing)) return `${listing.address} is ${listing.status.toLowerCase()}.`;
   return null;
 }
 
@@ -108,6 +99,8 @@ function buildMatchActions() {
           priority: 'high',
           title: `Send ${listing.address} to ${lead.name}`,
           personName: lead.name,
+          contactEmail: lead.email,
+          contactPhone: lead.phone,
           leadId: lead.id,
           listingId: listing.id,
           matchId: match.id,
@@ -137,6 +130,8 @@ function buildMatchActions() {
           priority: 'high',
           title: `Follow up with ${lead.name}`,
           personName: lead.name,
+          contactEmail: lead.email,
+          contactPhone: lead.phone,
           leadId: lead.id,
           listingId: listing.id,
           matchId: match.id,
@@ -169,6 +164,8 @@ function buildMatchActions() {
         priority: 'critical',
         title: `Clear blocker before sending ${listing.address}`,
         personName: lead.name,
+        contactEmail: lead.email,
+        contactPhone: lead.phone,
         leadId: lead.id,
         listingId: listing.id,
         matchId: match.id,
@@ -205,11 +202,12 @@ function buildLeadActions() {
         priority: 'critical',
         title: 'Respond to Amelia before the private preview window moves',
         personName: amelia.name,
+        contactEmail: amelia.email,
+        contactPhone: '802-274-9999',
         leadId: amelia.id,
         dueAt: 'Now',
         whyNow: `${amelia.name} contacted you ${amelia.lastContact} about a private Tribeca preview; fast response protects the showing window.`,
-        nextAction:
-          'Call first, then text two available showing windows if she does not answer.',
+        nextAction: 'Call first, then text two available showing windows if she does not answer.',
         primaryCtaLabel: 'Call Lead',
         primaryHref: `/leads/${amelia.id}`,
         secondaryCtaLabel: 'Send Text',
@@ -230,6 +228,8 @@ function buildLeadActions() {
         priority: 'critical',
         title: 'Prep Amelia before today’s Tribeca tour',
         personName: amelia.name,
+        contactEmail: amelia.email,
+        contactPhone: '802-274-9999',
         leadId: amelia.id,
         listingId: 'listing-101',
         dueAt: 'Today',
@@ -256,6 +256,8 @@ function buildLeadActions() {
         priority: 'high',
         title: 'Get Marcus financing-ready',
         personName: marcus.name,
+        contactEmail: marcus.email,
+        contactPhone: marcus.phone,
         leadId: marcus.id,
         dueAt: 'Today',
         whyNow: `${marcus.name} is a first-time buyer last contacted ${marcus.lastContact}; financing education is blocking qualified Long Island City inventory.`,
@@ -281,12 +283,13 @@ function buildLeadActions() {
         priority: 'high',
         title: 'Revive Sofia after the digest',
         personName: sofia.name,
+        contactEmail: sofia.email,
+        contactPhone: sofia.phone,
         leadId: sofia.id,
         matchId: 'match-9003',
         dueAt: 'Overdue',
         whyNow: `${sofia.name} received the Brooklyn Heights digest after her ${sofia.lastContact} check-in and has not responded; ask whether investment timing changed.`,
-        nextAction:
-          'Send a one-line follow-up tied to rental history and timing.',
+        nextAction: 'Send a one-line follow-up tied to rental history and timing.',
         primaryCtaLabel: 'Send Follow-Up',
         primaryHref: '/matches/match-9003',
         secondaryCtaLabel: 'Open Lead',
@@ -305,9 +308,7 @@ function buildLeadActions() {
 
 function buildSellerLaunchActions() {
   const listing = brokerListings.find((item) => item.id === 'listing-102');
-  const document = brokerDocuments.find(
-    (item) => item.title === 'West Village Offer Summary'
-  );
+  const document = brokerDocuments.find((item) => item.title === 'West Village Offer Summary');
   if (!listing || !document) return [];
 
   return [
@@ -320,8 +321,7 @@ function buildSellerLaunchActions() {
       listingId: listing.id,
       dueAt: 'Today',
       whyNow: `${listing.address} is coming soon and ${document.title} is marked ${document.status.toLowerCase()}; the buyer preview should wait until the packet is clean.`,
-      nextAction:
-        'Ask seller counsel for the final disclosure packet before sending the match.',
+      nextAction: 'Ask seller counsel for the final disclosure packet before sending the match.',
       primaryCtaLabel: 'Open Listing',
       primaryHref: `/listings/${listing.id}`,
       secondaryCtaLabel: 'Open Documents',

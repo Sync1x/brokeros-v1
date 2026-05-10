@@ -17,6 +17,8 @@ export interface CommandAction {
   priority: CommandActionPriority;
   title: string;
   personName: string;
+  contactEmail?: string;
+  contactPhone?: string;
   leadId?: string;
   listingId?: string;
   matchId?: string;
