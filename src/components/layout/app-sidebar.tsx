@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/sidebar';
 import { UserAvatarProfile } from '@/components/user-avatar-profile';
 import { navGroups } from '@/config/nav-config';
+import { AssistantSidebarPin } from '@/features/assistant/components/assistant-sidebar-pin';
 import { useMediaQuery } from '@/hooks/use-media-query';
 import { useUser } from '@clerk/nextjs';
 import { useFilteredNavGroups } from '@/hooks/use-nav';
@@ -118,6 +119,7 @@ export default function AppSidebar() {
             </SidebarMenu>
           </SidebarGroup>
         ))}
+        <AssistantSidebarPin />
       </SidebarContent>
       <SidebarFooter>
         <SidebarMenu>
