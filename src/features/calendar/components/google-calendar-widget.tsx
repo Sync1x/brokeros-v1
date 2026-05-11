@@ -261,9 +261,7 @@ const GOOGLE_EVENT_COLOR_FALLBACKS: Record<string, string> = {
 };
 
 const HOUR_HEIGHT = 62;
-const DAY_MINUTES = 24 * 60;
-const TIMELINE_HEIGHT = 24 * HOUR_HEIGHT;
-const EVENT_GUTTER = 10;
+const EVENT_GUTTER = 44;
 
 function buildDateTime(date: string, time: string) {
   if (!date) return undefined;
@@ -372,12 +370,23 @@ function formatCompactEventTime(event: GoogleCalendarEvent) {
   }).format(start);
 }
 
+function formatHourLabel(hour: number) {
+  const date = new Date();
+  date.setHours(hour, 0, 0, 0);
+
+  return new Intl.DateTimeFormat(undefined, {
+    hour: 'numeric'
+  }).format(date);
+}
+
 function CalendarTimelineEvent({
   item,
+  visibleStartHour,
   selected,
   onClick
 }: {
   item: PositionedCalendarEvent;
+  visibleStartHour: number;
   selected: boolean;
   onClick: () => void;
 }) {
@@ -385,7 +394,7 @@ function CalendarTimelineEvent({
   const color = calendarColor(event);
   const laneGap = 4;
   const eventStyle = {
-    top,
+    top: top - visibleStartHour * HOUR_HEIGHT,
     height,
     left: `calc(${EVENT_GUTTER}px + ${(lane / laneCount) * 100}% + ${lane ? laneGap / 2 : 0}px)`,
     width: `calc((100% - ${EVENT_GUTTER + 6}px) / ${laneCount} - ${laneCount > 1 ? laneGap : 0}px)`,
@@ -430,9 +439,26 @@ function CalendarDayTimeline({
   const positionedEvents = useMemo(() => positionEventsForDay(events, today), [events, today]);
   const now = new Date();
   const isToday = isSameDay(today, now);
-  const currentTop = (minutesIntoDay(now) / DAY_MINUTES) * TIMELINE_HEIGHT;
+  const visibleStartHour =
+    positionedEvents.length > 0
+      ? Math.max(0, Math.floor(Math.min(...positionedEvents.map((item) => item.startMinutes)) / 60))
+      : 0;
+  const visibleEndHour =
+    positionedEvents.length > 0
+      ? Math.min(
+          24,
+          Math.max(
+            visibleStartHour + 1,
+            Math.ceil(Math.max(...positionedEvents.map((item) => item.endMinutes)) / 60)
+          )
+        )
+      : 24;
+  const visibleHourCount = visibleEndHour - visibleStartHour;
+  const visibleTimelineHeight = visibleHourCount * HOUR_HEIGHT;
+  const currentTop = ((minutesIntoDay(now) - visibleStartHour * 60) / 60) * HOUR_HEIGHT;
+  const showCurrentTime = isToday && currentTop >= 0 && currentTop <= visibleTimelineHeight;
 
-  if (events.length === 0) {
+  if (positionedEvents.length === 0) {
     return (
       <div className='m-3 rounded-lg border border-dashed bg-muted/20 px-3 py-8 text-center'>
         <p className='text-sm font-medium'>No events today</p>
@@ -445,30 +471,38 @@ function CalendarDayTimeline({
     <div className='min-h-0 flex-1 overflow-y-auto bg-background'>
       <div
         className='relative mx-3 my-2 overflow-hidden rounded-lg border border-border/80 bg-background'
-        style={{ height: TIMELINE_HEIGHT }}
+        style={{ height: visibleTimelineHeight }}
       >
-        {Array.from({ length: 24 }).map((_, hour) => (
-          <div
-            key={hour}
-            className='relative border-t border-border/80 first:border-t-0'
-            style={{ height: HOUR_HEIGHT }}
-          >
-            <span className='absolute left-0 right-0 top-1/2 border-t border-dashed border-border/30' />
-          </div>
-        ))}
+        {Array.from({ length: visibleHourCount }).map((_, index) => {
+          const hour = visibleStartHour + index;
+
+          return (
+            <div
+              key={hour}
+              className='relative border-t border-border/80 first:border-t-0'
+              style={{ height: HOUR_HEIGHT }}
+            >
+              <span className='absolute left-2 top-1 font-mono text-[0.62rem] text-muted-foreground'>
+                {formatHourLabel(hour)}
+              </span>
+              <span className='absolute left-0 right-0 top-1/2 border-t border-dashed border-border/30' />
+            </div>
+          );
+        })}
 
         <div className='absolute inset-x-0 top-0'>
           {positionedEvents.map((item) => (
             <CalendarTimelineEvent
               key={eventKey(item.event)}
               item={item}
+              visibleStartHour={visibleStartHour}
               selected={selectedEventKey === eventKey(item.event)}
               onClick={() => onEventClick(item.event)}
             />
           ))}
         </div>
 
-        {isToday && (
+        {showCurrentTime && (
           <div
             className='pointer-events-none absolute left-0 right-0 z-20 h-0.5 bg-red-500'
             style={{ top: currentTop }}
