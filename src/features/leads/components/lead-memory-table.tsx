@@ -9,6 +9,8 @@ import {
   TableRow
 } from '@/components/ui/table';
 import type { Lead, Match } from '@/types/brokeros';
+import { LeadNameHoverCard } from './lead-name-hover-card';
+import { brokerLeadHoverProfile } from '../utils/lead-hover-profile';
 
 interface LeadMemoryTableProps {
   leads: Lead[];
@@ -36,9 +38,11 @@ export function LeadMemoryTable({ leads, matches }: LeadMemoryTableProps) {
             return (
               <TableRow key={lead.id}>
                 <TableCell>
-                  <Link href={`/leads/${lead.id}`} className='font-medium hover:text-primary'>
-                    {lead.name}
-                  </Link>
+                  <LeadNameHoverCard profile={brokerLeadHoverProfile(lead)}>
+                    <Link href={`/leads/${lead.id}`} className='font-medium hover:text-primary'>
+                      {lead.name}
+                    </Link>
+                  </LeadNameHoverCard>
                   <p className='text-muted-foreground mt-1 font-mono text-[0.68rem] uppercase'>
                     {lead.id}
                   </p>

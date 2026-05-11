@@ -3,11 +3,7 @@
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger
-} from '@/components/ui/collapsible';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   Dialog,
   DialogContent,
@@ -19,18 +15,12 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Icons } from '@/components/icons';
+import { LeadNameHoverCard, type LeadHoverProfile } from './lead-name-hover-card';
 import { cn } from '@/lib/utils';
 
 type LeadType = 'buyer' | 'seller';
 type SortKey = 'recent' | 'budget' | 'name';
-type LeadStatus =
-  | 'Active'
-  | 'Hot'
-  | 'Matched'
-  | 'Prospect'
-  | 'Stale'
-  | 'New'
-  | 'Under contract';
+type LeadStatus = 'Active' | 'Hot' | 'Matched' | 'Prospect' | 'Stale' | 'New' | 'Under contract';
 const LOCAL_LEADS_EVENT = 'brokeros:local-leads-updated';
 
 interface HouseProfile {
@@ -175,10 +165,7 @@ const buyerLeadSeeds = [
     currentHousingSituation: 'Renting in Logan Square',
     motivation: 'Lease ending this summer',
     documents: ['Preapproval letter'],
-    activity: [
-      'Inquiry received from listing portal',
-      'Budget confirmed by text'
-    ],
+    activity: ['Inquiry received from listing portal', 'Budget confirmed by text'],
     notes: 'Wants a condo near transit with outdoor space.'
   },
   {
@@ -604,9 +591,7 @@ function formatBudgetRange(lead: BuyerLead) {
 }
 
 function leadValue(lead: CrmLead) {
-  return lead.type === 'buyer'
-    ? formatBudgetRange(lead)
-    : lead.expectedListingPrice;
+  return lead.type === 'buyer' ? formatBudgetRange(lead) : lead.expectedListingPrice;
 }
 
 function leadValueNumber(lead: CrmLead) {
@@ -615,15 +600,67 @@ function leadValueNumber(lead: CrmLead) {
     : parseCurrency(lead.expectedListingPrice);
 }
 
+function crmLeadHoverProfile(lead: CrmLead): LeadHoverProfile {
+  const baseDetails = [
+    { label: 'Type', value: lead.type },
+    { label: 'Status', value: lead.status },
+    { label: 'Area', value: lead.area },
+    { label: 'Agent', value: lead.assignedAgent },
+    { label: 'Source', value: lead.source },
+    { label: 'Contact', value: lead.preferredContactMethod },
+    { label: 'Phone', value: lead.phone },
+    { label: 'Email', value: lead.email },
+    { label: 'Follow-up', value: lead.nextFollowUp }
+  ];
+
+  if (lead.type === 'buyer') {
+    return {
+      name: lead.name,
+      eyebrow: 'Buyer Lead',
+      status: lead.status,
+      summary: `${formatBudgetRange(lead)} in ${lead.preferredAreas.join(', ')}`,
+      details: [
+        ...baseDetails,
+        { label: 'Beds', value: lead.bedrooms },
+        { label: 'Baths', value: lead.bathrooms },
+        { label: 'Property', value: lead.propertyType },
+        { label: 'Timeline', value: lead.timeline },
+        { label: 'Preapproved', value: lead.preapproved }
+      ],
+      notes: [
+        lead.mustHaves,
+        lead.niceToHaves,
+        lead.dealBreakers,
+        lead.motivation,
+        lead.notes
+      ].filter(Boolean)
+    };
+  }
+
+  return {
+    name: lead.name,
+    eyebrow: 'Seller Lead',
+    status: lead.status,
+    summary: `${lead.expectedListingPrice || lead.agentEstimatedValue} target in ${lead.area}`,
+    details: [
+      ...baseDetails,
+      { label: 'Timeline', value: lead.targetSaleTimeline },
+      { label: 'Reason', value: lead.reasonForSelling },
+      { label: 'Estimate', value: lead.agentEstimatedValue },
+      { label: 'Occupancy', value: lead.occupancyStatus },
+      { label: 'Urgency', value: lead.sellerUrgency }
+    ],
+    notes: [lead.needsToBuyAfterSelling, lead.listingAppointmentDate, lead.notes].filter(Boolean)
+  };
+}
+
 function statusClass(status: string) {
   if (status === 'Active') return 'border-green-500 bg-green-500 text-white';
   if (status === 'Hot') return 'border-red-500 bg-red-500 text-white';
   if (status === 'Matched') return 'border-purple-500 bg-purple-500 text-white';
-  if (status === 'Prospect')
-    return 'border-orange-500 bg-orange-500 text-white';
+  if (status === 'Prospect') return 'border-orange-500 bg-orange-500 text-white';
   if (status === 'Stale') return 'border-yellow-400 bg-yellow-400 text-black';
-  if (status === 'Under contract')
-    return 'border-blue-500 bg-blue-500 text-white';
+  if (status === 'Under contract') return 'border-blue-500 bg-blue-500 text-white';
   return 'border-muted-foreground/40 bg-background text-foreground';
 }
 
@@ -1002,30 +1039,16 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function PanelSection({
-  title,
-  children
-}: {
-  title: string;
-  children: ReactNode;
-}) {
+function PanelSection({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className='border-b px-4 py-3'>
-      <h3 className='mb-2 text-xs font-semibold tracking-wide uppercase'>
-        {title}
-      </h3>
+      <h3 className='mb-2 text-xs font-semibold tracking-wide uppercase'>{title}</h3>
       <dl>{children}</dl>
     </section>
   );
 }
 
-function CollapsiblePanelSection({
-  title,
-  items
-}: {
-  title: string;
-  items: string[];
-}) {
+function CollapsiblePanelSection({ title, items }: { title: string; items: string[] }) {
   return (
     <Collapsible className='border-b'>
       <CollapsibleTrigger className='hover:bg-muted/50 flex w-full items-center justify-between px-4 py-3 text-xs font-semibold tracking-wide uppercase'>
@@ -1067,9 +1090,7 @@ function LeadColumn<T extends CrmLead>({
       <div className='flex h-full min-h-[520px] flex-col'>
         <div className='flex items-center justify-between border-b px-3 py-2'>
           <h2 className='text-sm font-semibold'>{title}</h2>
-          <span className='text-muted-foreground font-mono text-xs'>
-            {leads.length}
-          </span>
+          <span className='text-muted-foreground font-mono text-xs'>{leads.length}</span>
         </div>
         <div className='flex items-center gap-1 border-b p-2'>
           {sortTabs.map((tab) => (
@@ -1100,21 +1121,20 @@ function LeadColumn<T extends CrmLead>({
                 className={cn(
                   'grid w-full grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3 border-b px-3 py-2.5 text-left text-sm transition-colors',
                   'hover:bg-muted/50 focus-visible:ring-ring/35 focus-visible:ring-2 focus-visible:outline-none',
-                  isSelected &&
-                    'bg-muted/70 shadow-[inset_3px_0_0_var(--primary)]'
+                  isSelected && 'bg-muted/70 shadow-[inset_3px_0_0_var(--primary)]'
                 )}
               >
                 <span className='min-w-0'>
-                  <span className='block truncate font-medium'>
-                    {lead.name}
-                  </span>
+                  <LeadNameHoverCard profile={crmLeadHoverProfile(lead)}>
+                    <span className='block truncate font-medium underline-offset-4 hover:text-primary hover:underline'>
+                      {lead.name}
+                    </span>
+                  </LeadNameHoverCard>
                   <span className='text-muted-foreground mt-0.5 block truncate text-xs'>
                     {lead.area}
                   </span>
                 </span>
-                <span className='font-mono text-xs whitespace-nowrap'>
-                  {leadValue(lead)}
-                </span>
+                <span className='font-mono text-xs whitespace-nowrap'>{leadValue(lead)}</span>
                 <StatusBadge status={lead.status} />
               </button>
             );
@@ -1139,19 +1159,12 @@ function HouseProfileBlock({
       <div className='rounded-xl border bg-background shadow-xs'>
         <div className='flex items-center justify-between gap-2 border-b bg-muted/20 px-3 py-2.5'>
           <div className='min-w-0'>
-            <h3 className='text-xs font-semibold tracking-wide uppercase'>
-              Home Profile
-            </h3>
+            <h3 className='text-xs font-semibold tracking-wide uppercase'>Home Profile</h3>
             <p className='mt-0.5 text-xs text-muted-foreground'>
               Seller property details and showing notes.
             </p>
           </div>
-          <Button
-            variant='outline'
-            size='sm'
-            type='button'
-            onClick={() => onEdit(lead)}
-          >
+          <Button variant='outline' size='sm' type='button' onClick={() => onEdit(lead)}>
             <Icons.edit />
             {profile ? 'Edit' : 'Add'}
           </Button>
@@ -1176,16 +1189,10 @@ function HouseProfileBlock({
             <DetailRow label='HOA' value={profile.hoa} />
             <DetailRow label='Condition' value={profile.condition} />
             <DetailRow label='Occupancy' value={profile.occupancyStatus} />
-            <DetailRow
-              label='Showing instructions'
-              value={profile.showingInstructions}
-            />
+            <DetailRow label='Showing instructions' value={profile.showingInstructions} />
             <DetailRow label='Key features' value={profile.keyFeatures} />
             <DetailRow label='Upgrades' value={profile.upgrades} />
-            <DetailRow
-              label='Seller description'
-              value={profile.sellerDescription}
-            />
+            <DetailRow label='Seller description' value={profile.sellerDescription} />
             <DetailRow label='Agent notes' value={profile.agentNotes} />
           </dl>
         ) : (
@@ -1222,58 +1229,36 @@ function LeadEditDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className='max-h-[88vh] overflow-hidden rounded-lg p-0 sm:max-w-5xl'>
+      <DialogContent className='grid max-h-[88vh] grid-rows-[auto_minmax(0,1fr)] gap-0 overflow-hidden rounded-lg p-0 sm:max-w-5xl'>
         <DialogHeader className='border-b px-4 py-3'>
           <DialogTitle className='text-base'>Edit Lead</DialogTitle>
           <DialogDescription className='text-xs'>
-            Update contact details, profile fields, documents, activity, and
-            notes.
+            Update contact details, profile fields, documents, activity, and notes.
           </DialogDescription>
         </DialogHeader>
 
         {lead && (
-          <form
-            onSubmit={handleSubmit}
-            className='flex min-h-0 flex-col overflow-hidden'
-          >
-            <div className='min-h-0 flex-1 overflow-y-auto p-4'>
+          <form onSubmit={handleSubmit} className='flex min-h-0 flex-col overflow-hidden'>
+            <div className='min-h-0 flex-1 overflow-y-auto overscroll-contain p-4'>
               <div className='grid gap-4 md:grid-cols-2'>
                 <section className='rounded-lg border p-3 md:col-span-2'>
-                  <h3 className='mb-3 text-xs font-semibold tracking-wide uppercase'>
-                    Basics
-                  </h3>
+                  <h3 className='mb-3 text-xs font-semibold tracking-wide uppercase'>Basics</h3>
                   <div className='grid gap-3 md:grid-cols-2'>
-                    <Field
-                      label='Full name'
-                      name='name'
-                      defaultValue={lead.name}
-                    />
+                    <Field label='Full name' name='name' defaultValue={lead.name} />
                     <SelectField
                       label='Status'
                       name='status'
                       defaultValue={lead.status}
                       options={statusOptions}
                     />
-                    <Field
-                      label='Phone'
-                      name='phone'
-                      defaultValue={lead.phone}
-                    />
-                    <Field
-                      label='Email'
-                      name='email'
-                      defaultValue={lead.email}
-                    />
+                    <Field label='Phone' name='phone' defaultValue={lead.phone} />
+                    <Field label='Email' name='email' defaultValue={lead.email} />
                     <Field
                       label='Preferred contact'
                       name='preferredContactMethod'
                       defaultValue={lead.preferredContactMethod}
                     />
-                    <Field
-                      label='Source'
-                      name='source'
-                      defaultValue={lead.source}
-                    />
+                    <Field label='Source' name='source' defaultValue={lead.source} />
                     <Field
                       label='Assigned agent'
                       name='assignedAgent'
@@ -1300,31 +1285,15 @@ function LeadEditDialog({
                         Buyer Criteria
                       </h3>
                       <div className='grid gap-3 md:grid-cols-2'>
-                        <Field
-                          label='Budget min'
-                          name='budgetMin'
-                          defaultValue={lead.budgetMin}
-                        />
-                        <Field
-                          label='Budget max'
-                          name='budgetMax'
-                          defaultValue={lead.budgetMax}
-                        />
+                        <Field label='Budget min' name='budgetMin' defaultValue={lead.budgetMin} />
+                        <Field label='Budget max' name='budgetMax' defaultValue={lead.budgetMax} />
                         <Field
                           label='Preferred areas'
                           name='preferredAreas'
                           defaultValue={lead.preferredAreas.join(', ')}
                         />
-                        <Field
-                          label='Bedrooms'
-                          name='bedrooms'
-                          defaultValue={lead.bedrooms}
-                        />
-                        <Field
-                          label='Bathrooms'
-                          name='bathrooms'
-                          defaultValue={lead.bathrooms}
-                        />
+                        <Field label='Bedrooms' name='bedrooms' defaultValue={lead.bedrooms} />
+                        <Field label='Bathrooms' name='bathrooms' defaultValue={lead.bathrooms} />
                         <Field
                           label='Property type'
                           name='propertyType'
@@ -1358,11 +1327,7 @@ function LeadEditDialog({
                         Buying Situation
                       </h3>
                       <div className='grid gap-3 md:grid-cols-2'>
-                        <Field
-                          label='Timeline'
-                          name='timeline'
-                          defaultValue={lead.timeline}
-                        />
+                        <Field label='Timeline' name='timeline' defaultValue={lead.timeline} />
                         <Field
                           label='First-time buyer'
                           name='firstTimeBuyer'
@@ -1378,11 +1343,7 @@ function LeadEditDialog({
                           name='preapprovalAmount'
                           defaultValue={lead.preapprovalAmount}
                         />
-                        <Field
-                          label='Lender'
-                          name='lender'
-                          defaultValue={lead.lender}
-                        />
+                        <Field label='Lender' name='lender' defaultValue={lead.lender} />
                         <Field
                           label='Housing situation'
                           name='currentHousingSituation'
@@ -1466,22 +1427,14 @@ function LeadEditDialog({
                       name='activity'
                       defaultValue={joinLines(lead.activity)}
                     />
-                    <TextareaField
-                      label='Notes'
-                      name='notes'
-                      defaultValue={lead.notes}
-                    />
+                    <TextareaField label='Notes' name='notes' defaultValue={lead.notes} />
                   </div>
                 </section>
               </div>
             </div>
 
-            <DialogFooter className='border-t p-4'>
-              <Button
-                variant='outline'
-                type='button'
-                onClick={() => onOpenChange(false)}
-              >
+            <DialogFooter className='shrink-0 border-t bg-background p-4'>
+              <Button variant='outline' type='button' onClick={() => onOpenChange(false)}>
                 Cancel
               </Button>
               <Button type='submit'>Save Lead</Button>
@@ -1512,20 +1465,17 @@ function LeadProfilePanel({
         <div className='flex items-start justify-between gap-3'>
           <div className='min-w-0'>
             <div className='flex flex-wrap items-center gap-2'>
-              <h2 className='truncate text-base font-semibold'>{lead.name}</h2>
+              <LeadNameHoverCard profile={crmLeadHoverProfile(lead)}>
+                <h2 className='truncate text-base font-semibold underline-offset-4 hover:text-primary hover:underline'>
+                  {lead.name}
+                </h2>
+              </LeadNameHoverCard>
               <StatusBadge status={lead.status} />
             </div>
-            <p className='text-muted-foreground mt-1 text-xs uppercase'>
-              {lead.type}
-            </p>
+            <p className='text-muted-foreground mt-1 text-xs uppercase'>{lead.type}</p>
           </div>
           <div className='flex shrink-0 items-center gap-1'>
-            <Button
-              variant='outline'
-              size='sm'
-              type='button'
-              onClick={() => onEditLead(lead)}
-            >
+            <Button variant='outline' size='sm' type='button' onClick={() => onEditLead(lead)}>
               <Icons.edit />
               Edit
             </Button>
@@ -1559,10 +1509,7 @@ function LeadProfilePanel({
         <PanelSection title='Contact Info'>
           <DetailRow label='Phone' value={lead.phone} />
           <DetailRow label='Email' value={lead.email} />
-          <DetailRow
-            label='Preferred contact'
-            value={lead.preferredContactMethod}
-          />
+          <DetailRow label='Preferred contact' value={lead.preferredContactMethod} />
           <DetailRow label='Source' value={lead.source} />
           <DetailRow label='Assigned agent' value={lead.assignedAgent} />
           <DetailRow label='Area' value={lead.area} />
@@ -1574,17 +1521,11 @@ function LeadProfilePanel({
           <>
             <PanelSection title='Buyer Criteria'>
               <DetailRow label='Budget range' value={formatBudgetRange(lead)} />
-              <DetailRow
-                label='Preferred areas'
-                value={lead.preferredAreas.join(', ')}
-              />
+              <DetailRow label='Preferred areas' value={lead.preferredAreas.join(', ')} />
               <DetailRow label='Bedrooms' value={lead.bedrooms} />
               <DetailRow label='Bathrooms' value={lead.bathrooms} />
               <DetailRow label='Property type' value={lead.propertyType} />
-              <DetailRow
-                label='Square footage'
-                value={lead.squareFootageRange}
-              />
+              <DetailRow label='Square footage' value={lead.squareFootageRange} />
               <DetailRow label='Must-haves' value={lead.mustHaves} />
               <DetailRow label='Nice-to-haves' value={lead.niceToHaves} />
               <DetailRow label='Deal breakers' value={lead.dealBreakers} />
@@ -1593,15 +1534,9 @@ function LeadProfilePanel({
               <DetailRow label='Timeline' value={lead.timeline} />
               <DetailRow label='First-time buyer' value={lead.firstTimeBuyer} />
               <DetailRow label='Preapproved' value={lead.preapproved} />
-              <DetailRow
-                label='Preapproval amount'
-                value={lead.preapprovalAmount}
-              />
+              <DetailRow label='Preapproval amount' value={lead.preapprovalAmount} />
               <DetailRow label='Lender' value={lead.lender} />
-              <DetailRow
-                label='Housing situation'
-                value={lead.currentHousingSituation}
-              />
+              <DetailRow label='Housing situation' value={lead.currentHousingSituation} />
               <DetailRow label='Motivation' value={lead.motivation} />
             </PanelSection>
             <CollapsiblePanelSection title='Documents' items={lead.documents} />
@@ -1610,47 +1545,24 @@ function LeadProfilePanel({
         ) : (
           <>
             <PanelSection title='Seller Situation'>
-              <DetailRow
-                label='Sale timeline'
-                value={lead.targetSaleTimeline}
-              />
+              <DetailRow label='Sale timeline' value={lead.targetSaleTimeline} />
               <DetailRow label='Reason' value={lead.reasonForSelling} />
-              <DetailRow
-                label='Expected price'
-                value={lead.expectedListingPrice}
-              />
-              <DetailRow
-                label='Agent estimate'
-                value={lead.agentEstimatedValue}
-              />
+              <DetailRow label='Expected price' value={lead.expectedListingPrice} />
+              <DetailRow label='Agent estimate' value={lead.agentEstimatedValue} />
               <DetailRow label='Occupancy' value={lead.occupancyStatus} />
               <DetailRow label='Has mortgage' value={lead.hasMortgage} />
-              <DetailRow
-                label='Buy after selling'
-                value={lead.needsToBuyAfterSelling}
-              />
-              <DetailRow
-                label='Listing appointment'
-                value={lead.listingAppointmentDate}
-              />
+              <DetailRow label='Buy after selling' value={lead.needsToBuyAfterSelling} />
+              <DetailRow label='Listing appointment' value={lead.listingAppointmentDate} />
               <DetailRow label='Urgency' value={lead.sellerUrgency} />
             </PanelSection>
             <HouseProfileBlock lead={lead} onEdit={onEditHouseProfile} />
-            <CollapsiblePanelSection
-              title='Seller Documents'
-              items={lead.documents}
-            />
-            <CollapsiblePanelSection
-              title='Seller Activity'
-              items={lead.activity}
-            />
+            <CollapsiblePanelSection title='Seller Documents' items={lead.documents} />
+            <CollapsiblePanelSection title='Seller Activity' items={lead.activity} />
           </>
         )}
 
         <section className='px-4 py-3'>
-          <h3 className='mb-2 text-xs font-semibold tracking-wide uppercase'>
-            Notes
-          </h3>
+          <h3 className='mb-2 text-xs font-semibold tracking-wide uppercase'>Notes</h3>
           <Textarea
             value={lead.notes}
             onChange={(event) => onNoteChange(lead.id, event.target.value)}
@@ -1678,9 +1590,7 @@ function AddLeadDialog({
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     const lead =
-      type === 'buyer'
-        ? toBuyerLead(formData, -Date.now())
-        : toSellerLead(formData, -Date.now());
+      type === 'buyer' ? toBuyerLead(formData, -Date.now()) : toSellerLead(formData, -Date.now());
     onSubmit(lead);
     onOpenChange(false);
     event.currentTarget.reset();
@@ -1696,10 +1606,7 @@ function AddLeadDialog({
             Create a buyer or seller lead in this local workspace.
           </DialogDescription>
         </DialogHeader>
-        <form
-          onSubmit={handleSubmit}
-          className='flex min-h-0 flex-1 flex-col overflow-hidden'
-        >
+        <form onSubmit={handleSubmit} className='flex min-h-0 flex-1 flex-col overflow-hidden'>
           <div className='grid min-h-0 flex-1 gap-3 overflow-y-auto p-4 md:grid-cols-2'>
             <label className='grid gap-1 text-xs font-medium'>
               Lead type
@@ -1723,10 +1630,7 @@ function AddLeadDialog({
               options={statusOptions}
             />
             <Field label='Source' name='source' />
-            <Field
-              label='Preferred contact method'
-              name='preferredContactMethod'
-            />
+            <Field label='Preferred contact method' name='preferredContactMethod' />
             <Field label='Assigned agent' name='assignedAgent' />
             <Field label='Area/location' name='area' />
             <Field label='Last contact' name='lastContact' />
@@ -1746,10 +1650,7 @@ function AddLeadDialog({
                 <Field label='Preapproved' name='preapproved' />
                 <Field label='Preapproval amount' name='preapprovalAmount' />
                 <Field label='Lender' name='lender' />
-                <Field
-                  label='Current housing situation'
-                  name='currentHousingSituation'
-                />
+                <Field label='Current housing situation' name='currentHousingSituation' />
                 <Field label='Motivation' name='motivation' />
                 <TextareaField label='Must-haves' name='mustHaves' />
                 <TextareaField label='Nice-to-haves' name='niceToHaves' />
@@ -1758,39 +1659,20 @@ function AddLeadDialog({
             ) : (
               <>
                 <Field label='Target sale timeline' name='targetSaleTimeline' />
-                <Field
-                  label='Reason/motivation for selling'
-                  name='reasonForSelling'
-                />
-                <Field
-                  label='Expected listing price'
-                  name='expectedListingPrice'
-                />
-                <Field
-                  label='Agent estimated value'
-                  name='agentEstimatedValue'
-                />
+                <Field label='Reason/motivation for selling' name='reasonForSelling' />
+                <Field label='Expected listing price' name='expectedListingPrice' />
+                <Field label='Agent estimated value' name='agentEstimatedValue' />
                 <Field label='Occupancy status' name='occupancyStatus' />
                 <Field label='Has mortgage' name='hasMortgage' />
-                <Field
-                  label='Needs to buy after selling'
-                  name='needsToBuyAfterSelling'
-                />
-                <Field
-                  label='Listing appointment date'
-                  name='listingAppointmentDate'
-                />
+                <Field label='Needs to buy after selling' name='needsToBuyAfterSelling' />
+                <Field label='Listing appointment date' name='listingAppointmentDate' />
                 <Field label='Seller urgency' name='sellerUrgency' />
               </>
             )}
             <TextareaField label='Notes' name='notes' />
           </div>
           <DialogFooter className='bg-background shrink-0 border-t p-4'>
-            <Button
-              variant='outline'
-              type='button'
-              onClick={() => onOpenChange(false)}
-            >
+            <Button variant='outline' type='button' onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
             <Button type='submit'>Confirm Add Lead</Button>
@@ -1819,9 +1701,7 @@ function ImportLeadsDialog({
   }
 
   function handleImport() {
-    const leads = parsedRows.map((row, index) =>
-      csvRowToLead(row, -Date.now() - index)
-    );
+    const leads = parsedRows.map((row, index) => csvRowToLead(row, -Date.now() - index));
     onImport(leads);
     setCsvText('');
     onOpenChange(false);
@@ -1833,9 +1713,8 @@ function ImportLeadsDialog({
         <DialogHeader className='border-b px-4 py-3'>
           <DialogTitle className='text-base'>Import Leads</DialogTitle>
           <DialogDescription className='text-xs'>
-            Upload or paste CSV columns: type, fullName, phone, email, status,
-            source, area, budgetMin, budgetMax, listingValue, bedrooms,
-            bathrooms, timeline, notes.
+            Upload or paste CSV columns: type, fullName, phone, email, status, source, area,
+            budgetMin, budgetMax, listingValue, bedrooms, bathrooms, timeline, notes.
           </DialogDescription>
         </DialogHeader>
         <div className='grid gap-3 p-4'>
@@ -1878,10 +1757,7 @@ function ImportLeadsDialog({
                 ))}
                 {parsedRows.length === 0 && (
                   <tr>
-                    <td
-                      colSpan={5}
-                      className='text-muted-foreground px-2 py-6 text-center'
-                    >
+                    <td colSpan={5} className='text-muted-foreground px-2 py-6 text-center'>
                       No CSV rows ready to preview.
                     </td>
                   </tr>
@@ -1891,18 +1767,10 @@ function ImportLeadsDialog({
           </div>
         </div>
         <DialogFooter className='border-t p-4'>
-          <Button
-            variant='outline'
-            type='button'
-            onClick={() => onOpenChange(false)}
-          >
+          <Button variant='outline' type='button' onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button
-            type='button'
-            disabled={parsedRows.length === 0}
-            onClick={handleImport}
-          >
+          <Button type='button' disabled={parsedRows.length === 0} onClick={handleImport}>
             Import {parsedRows.length || ''} leads
           </Button>
         </DialogFooter>
@@ -1955,75 +1823,27 @@ function HouseProfileDialog({
         </DialogHeader>
         <form onSubmit={handleSubmit} className='min-h-0 overflow-auto'>
           <div className='grid gap-3 p-4 md:grid-cols-2'>
-            <Field
-              label='Property address'
-              name='address'
-              defaultValue={profile.address}
-            />
+            <Field label='Property address' name='address' defaultValue={profile.address} />
             <Field label='City' name='city' defaultValue={profile.city} />
             <Field label='State' name='state' defaultValue={profile.state} />
             <Field label='ZIP' name='zip' defaultValue={profile.zip} />
-            <Field
-              label='Property type'
-              name='propertyType'
-              defaultValue={profile.propertyType}
-            />
+            <Field label='Property type' name='propertyType' defaultValue={profile.propertyType} />
             <Field
               label='Estimated/listing price'
               name='estimatedListingPrice'
               defaultValue={profile.estimatedListingPrice}
             />
-            <Field
-              label='Bedrooms'
-              name='bedrooms'
-              defaultValue={profile.bedrooms}
-            />
-            <Field
-              label='Bathrooms'
-              name='bathrooms'
-              defaultValue={profile.bathrooms}
-            />
-            <Field
-              label='Square footage'
-              name='squareFeet'
-              defaultValue={profile.squareFeet}
-            />
-            <Field
-              label='Lot size'
-              name='lotSize'
-              defaultValue={profile.lotSize}
-            />
-            <Field
-              label='Year built'
-              name='yearBuilt'
-              defaultValue={profile.yearBuilt}
-            />
-            <Field
-              label='Garage/parking'
-              name='parking'
-              defaultValue={profile.parking}
-            />
-            <Field
-              label='Basement'
-              name='basement'
-              defaultValue={profile.basement}
-            />
-            <Field
-              label='Heating'
-              name='heating'
-              defaultValue={profile.heating}
-            />
-            <Field
-              label='Cooling'
-              name='cooling'
-              defaultValue={profile.cooling}
-            />
+            <Field label='Bedrooms' name='bedrooms' defaultValue={profile.bedrooms} />
+            <Field label='Bathrooms' name='bathrooms' defaultValue={profile.bathrooms} />
+            <Field label='Square footage' name='squareFeet' defaultValue={profile.squareFeet} />
+            <Field label='Lot size' name='lotSize' defaultValue={profile.lotSize} />
+            <Field label='Year built' name='yearBuilt' defaultValue={profile.yearBuilt} />
+            <Field label='Garage/parking' name='parking' defaultValue={profile.parking} />
+            <Field label='Basement' name='basement' defaultValue={profile.basement} />
+            <Field label='Heating' name='heating' defaultValue={profile.heating} />
+            <Field label='Cooling' name='cooling' defaultValue={profile.cooling} />
             <Field label='HOA' name='hoa' defaultValue={profile.hoa} />
-            <Field
-              label='Property condition'
-              name='condition'
-              defaultValue={profile.condition}
-            />
+            <Field label='Property condition' name='condition' defaultValue={profile.condition} />
             <Field
               label='Occupancy status'
               name='occupancyStatus'
@@ -2056,11 +1876,7 @@ function HouseProfileDialog({
             />
           </div>
           <DialogFooter className='border-t p-4'>
-            <Button
-              variant='outline'
-              type='button'
-              onClick={() => onOpenChange(false)}
-            >
+            <Button variant='outline' type='button' onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
             <Button type='submit'>Save House Profile</Button>
@@ -2073,26 +1889,17 @@ function HouseProfileDialog({
 
 export function LeadsWorkspace() {
   const [buyerLeads, setBuyerLeads] = useState<BuyerLead[]>(initialBuyerLeads);
-  const [sellerLeads, setSellerLeads] =
-    useState<SellerLead[]>(initialSellerLeads);
+  const [sellerLeads, setSellerLeads] = useState<SellerLead[]>(initialSellerLeads);
   const [buyerSort, setBuyerSort] = useState<SortKey>('recent');
   const [sellerSort, setSellerSort] = useState<SortKey>('recent');
-  const [selectedLeadId, setSelectedLeadId] = useState<string>(
-    initialBuyerLeads[0]?.id ?? ''
-  );
+  const [selectedLeadId, setSelectedLeadId] = useState<string>(initialBuyerLeads[0]?.id ?? '');
   const [addOpen, setAddOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [leadToEdit, setLeadToEdit] = useState<CrmLead | null>(null);
-  const [houseProfileLead, setHouseProfileLead] = useState<SellerLead | null>(
-    null
-  );
+  const [houseProfileLead, setHouseProfileLead] = useState<SellerLead | null>(null);
 
-  const allLeads = useMemo(
-    () => [...buyerLeads, ...sellerLeads],
-    [buyerLeads, sellerLeads]
-  );
-  const selectedLead =
-    allLeads.find((lead) => lead.id === selectedLeadId) ?? null;
+  const allLeads = useMemo(() => [...buyerLeads, ...sellerLeads], [buyerLeads, sellerLeads]);
+  const selectedLead = allLeads.find((lead) => lead.id === selectedLeadId) ?? null;
   const filteredBuyers = useMemo(
     () => filterAndSortLeads(buyerLeads, buyerSort),
     [buyerLeads, buyerSort]
@@ -2117,12 +1924,8 @@ export function LeadsWorkspace() {
   }
 
   function importLeads(leads: CrmLead[]) {
-    const buyers = leads.filter(
-      (lead): lead is BuyerLead => lead.type === 'buyer'
-    );
-    const sellers = leads.filter(
-      (lead): lead is SellerLead => lead.type === 'seller'
-    );
+    const buyers = leads.filter((lead): lead is BuyerLead => lead.type === 'buyer');
+    const sellers = leads.filter((lead): lead is SellerLead => lead.type === 'seller');
     setBuyerLeads((current) => [...buyers, ...current]);
     setSellerLeads((current) => [...sellers, ...current]);
     publishLocalSearchLeads(leads);
@@ -2131,26 +1934,18 @@ export function LeadsWorkspace() {
 
   function updateNote(leadId: string, value: string) {
     setBuyerLeads((current) =>
-      current.map((lead) =>
-        lead.id === leadId ? { ...lead, notes: value } : lead
-      )
+      current.map((lead) => (lead.id === leadId ? { ...lead, notes: value } : lead))
     );
     setSellerLeads((current) =>
-      current.map((lead) =>
-        lead.id === leadId ? { ...lead, notes: value } : lead
-      )
+      current.map((lead) => (lead.id === leadId ? { ...lead, notes: value } : lead))
     );
   }
 
   function saveLead(lead: CrmLead) {
     if (lead.type === 'buyer') {
-      setBuyerLeads((current) =>
-        current.map((item) => (item.id === lead.id ? lead : item))
-      );
+      setBuyerLeads((current) => current.map((item) => (item.id === lead.id ? lead : item)));
     } else {
-      setSellerLeads((current) =>
-        current.map((item) => (item.id === lead.id ? lead : item))
-      );
+      setSellerLeads((current) => current.map((item) => (item.id === lead.id ? lead : item)));
     }
     publishLocalSearchLeads([lead]);
     setSelectedLeadId(lead.id);
@@ -2158,9 +1953,7 @@ export function LeadsWorkspace() {
 
   function saveHouseProfile(leadId: string, profile: HouseProfile) {
     setSellerLeads((current) =>
-      current.map((lead) =>
-        lead.id === leadId ? { ...lead, houseProfile: profile } : lead
-      )
+      current.map((lead) => (lead.id === leadId ? { ...lead, houseProfile: profile } : lead))
     );
     setSelectedLeadId(leadId);
   }
@@ -2173,12 +1966,7 @@ export function LeadsWorkspace() {
             <Icons.adjustments />
             Filter
           </Button>
-          <Button
-            variant='outline'
-            size='sm'
-            type='button'
-            onClick={() => setImportOpen(true)}
-          >
+          <Button variant='outline' size='sm' type='button' onClick={() => setImportOpen(true)}>
             <Icons.upload />
             Import Leads
           </Button>
@@ -2219,16 +2007,8 @@ export function LeadsWorkspace() {
         )}
       </div>
 
-      <AddLeadDialog
-        open={addOpen}
-        onOpenChange={setAddOpen}
-        onSubmit={addLead}
-      />
-      <ImportLeadsDialog
-        open={importOpen}
-        onOpenChange={setImportOpen}
-        onImport={importLeads}
-      />
+      <AddLeadDialog open={addOpen} onOpenChange={setAddOpen} onSubmit={addLead} />
+      <ImportLeadsDialog open={importOpen} onOpenChange={setImportOpen} onImport={importLeads} />
       <LeadEditDialog
         lead={leadToEdit}
         open={leadToEdit !== null}

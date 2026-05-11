@@ -1,6 +1,8 @@
 import PageContainer from '@/components/layout/page-container';
 import { Badge } from '@/components/ui/badge';
 import { brokerLeads, brokerListings, brokerMatches } from '@/constants/brokeros-mock-data';
+import { LeadNameHoverCard } from '@/features/leads/components/lead-name-hover-card';
+import { brokerLeadHoverProfile } from '@/features/leads/utils/lead-hover-profile';
 import { notFound } from 'next/navigation';
 
 export default async function MatchDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -22,7 +24,11 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
       <div className='bg-background border-y p-2.5'>
         <div className='flex items-start justify-between gap-3'>
           <div>
-            <p className='text-muted-foreground font-mono text-[0.68rem] uppercase'>{lead.name}</p>
+            <LeadNameHoverCard profile={brokerLeadHoverProfile(lead)}>
+              <p className='text-muted-foreground font-mono text-[0.68rem] uppercase underline-offset-4 hover:text-primary hover:underline'>
+                {lead.name}
+              </p>
+            </LeadNameHoverCard>
             <h2 className='mt-1 font-mono text-base font-semibold uppercase'>{listing.address}</h2>
           </div>
           <Badge variant='outline' className='border-primary/50 font-mono text-primary'>
