@@ -9,6 +9,7 @@ import { Separator } from '@/components/ui/separator';
 import { NotificationCard } from '@/components/ui/notification-card';
 import { useNotificationStore } from '../utils/store';
 import { useRouter } from 'next/navigation';
+import { cn } from '@/lib/utils';
 
 const MAX_VISIBLE = 5;
 
@@ -29,12 +30,15 @@ export function NotificationCenter() {
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant='ghost' size='icon' className='relative h-8 w-8'>
-          <Icons.notification className='h-4 w-4' />
+        <Button
+          variant='ghost'
+          size='icon'
+          className='relative size-8'
+          aria-label={count > 0 ? `${count} unread notifications` : 'Notifications'}
+        >
+          <Icons.notification className={cn('size-4', count > 0 && 'text-destructive')} />
           {count > 0 && (
-            <span className='bg-destructive text-destructive-foreground absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-medium'>
-              {count > 9 ? '9+' : count}
-            </span>
+            <span className='absolute top-1.5 right-1.5 size-2 rounded-full bg-destructive ring-2 ring-background' />
           )}
           <span className='sr-only'>Notifications</span>
         </Button>

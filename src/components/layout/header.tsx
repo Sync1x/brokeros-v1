@@ -3,6 +3,7 @@ import { SidebarTrigger } from '../ui/sidebar';
 import { Separator } from '../ui/separator';
 import { Breadcrumbs } from '../breadcrumbs';
 import SearchInput from '../search-input';
+import { NotificationCenter } from '@/features/notifications/components/notification-center';
 
 export default function Header() {
   return (
@@ -15,6 +16,10 @@ export default function Header() {
 
       <div className='pointer-events-none absolute left-1/2 hidden w-full max-w-[620px] -translate-x-1/2 px-3 md:block'>
         <SearchInput />
+      </div>
+
+      <div className='ml-auto flex items-center px-3'>
+        <NotificationCenter />
       </div>
     </header>
   );
