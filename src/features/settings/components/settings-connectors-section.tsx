@@ -38,12 +38,12 @@ function GoogleCalendarIcon({ className }: { className?: string }) {
   return (
     <span
       className={cn(
-        'grid size-8 place-items-center rounded-md border bg-background shadow-xs',
+        'grid size-7 place-items-center rounded-sm border bg-background shadow-xs',
         className
       )}
       aria-hidden='true'
     >
-      <span className='grid size-5 grid-cols-2 overflow-hidden rounded-[4px] border border-background'>
+      <span className='grid size-4 grid-cols-2 overflow-hidden rounded-[3px] border border-background'>
         <span className='bg-blue-500' />
         <span className='bg-red-500' />
         <span className='bg-yellow-400' />
@@ -58,15 +58,15 @@ function ConnectorBlock({ connector }: { connector: ConnectorConfig }) {
   const statusText = connector.isConnected ? connector.connectedLabel : connector.statusLabel;
 
   return (
-    <article className='bg-background hover:bg-muted/15 grid min-h-28 grid-cols-[1fr_auto] gap-3 rounded-lg border p-4 transition-colors'>
-      <div className='flex min-w-0 gap-3'>
+    <article className='bg-background hover:bg-muted/15 grid min-h-0 grid-cols-[1fr_auto] gap-2 rounded-md border p-2.5 transition-colors'>
+      <div className='flex min-w-0 gap-2'>
         <Icon className='shrink-0' />
         <div className='min-w-0'>
-          <div className='flex flex-wrap items-center gap-2'>
-            <h3 className='truncate text-sm font-semibold'>{connector.name}</h3>
+          <div className='flex flex-wrap items-center gap-x-2 gap-y-1'>
+            <h3 className='truncate text-xs font-semibold'>{connector.name}</h3>
             <span
               className={cn(
-                'text-[0.68rem]',
+                'text-[0.62rem]',
                 connector.isConnected
                   ? 'text-green-600 dark:text-green-400'
                   : 'text-muted-foreground'
@@ -75,7 +75,7 @@ function ConnectorBlock({ connector }: { connector: ConnectorConfig }) {
               {statusText}
             </span>
           </div>
-          <p className='mt-3 max-w-sm text-xs leading-relaxed text-muted-foreground'>
+          <p className='mt-1 max-w-64 text-[0.7rem] leading-4 text-muted-foreground'>
             {connector.description}
           </p>
         </div>
@@ -87,7 +87,7 @@ function ConnectorBlock({ connector }: { connector: ConnectorConfig }) {
             type='button'
             variant='ghost'
             size='icon'
-            className='size-8 text-muted-foreground'
+            className='size-7 text-muted-foreground'
             onClick={connector.settingsAction}
             aria-label={`Open ${connector.name} settings`}
           >
@@ -98,7 +98,7 @@ function ConnectorBlock({ connector }: { connector: ConnectorConfig }) {
             asChild
             variant='ghost'
             size='icon'
-            className='size-8 text-muted-foreground'
+            className='size-7 text-muted-foreground'
             aria-label={`Connect ${connector.name}`}
           >
             <Link href={connector.connectHref}>
@@ -255,13 +255,13 @@ export function SettingsConnectorsSection() {
   );
 
   return (
-    <section className='space-y-3'>
+    <section className='space-y-2'>
       <div>
         <h2 className='text-sm font-semibold'>Connectors</h2>
         <p className='mt-1 text-xs text-muted-foreground'>Connect external tools to BrokerOS.</p>
       </div>
 
-      <div className='grid gap-3 md:grid-cols-2'>
+      <div className='grid gap-2 sm:grid-cols-2 xl:grid-cols-3'>
         {connectors.map((connector) => (
           <ConnectorBlock key={connector.id} connector={connector} />
         ))}

@@ -9,7 +9,9 @@ export default function SettingsPage() {
       pageTitle='Settings'
       pageDescription='BrokerOS configuration, currently backed by local mock state.'
     >
-      <SettingsConnectorsSection />
+      <div className='mb-8'>
+        <SettingsConnectorsSection />
+      </div>
       <div className='grid border-t border-l md:grid-cols-2'>
         {settings.map((setting) => (
           <div key={setting} className='bg-background border-r border-b p-2.5 hover:bg-muted/20'>
