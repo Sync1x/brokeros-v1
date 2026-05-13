@@ -122,17 +122,11 @@ function firstNonEmpty(...values: (string | undefined)[]) {
 
 /** Prefer NEXT_PUBLIC_SUPABASE_URL — matches typical .env.local; empty placeholders must not shadow it */
 function supabaseUrl() {
-  return firstNonEmpty(
-    envValue('NEXT_PUBLIC_SUPABASE_URL'),
-    envValue('SUPABASE_URL')
-  );
+  return firstNonEmpty(envValue('NEXT_PUBLIC_SUPABASE_URL'), envValue('SUPABASE_URL'));
 }
 
 function supabaseServiceRoleKey() {
-  return firstNonEmpty(
-    envValue('SUPABASE_SERVICE_ROLE_KEY'),
-    envValue('SUPABASE_SERVICE_KEY')
-  );
+  return firstNonEmpty(envValue('SUPABASE_SERVICE_ROLE_KEY'), envValue('SUPABASE_SERVICE_KEY'));
 }
 
 function getSupabaseConfig() {
@@ -155,9 +149,7 @@ function getSupabaseConfig() {
   return { url: url.replace(/\/$/, ''), key };
 }
 
-function expiryDateToMs(
-  expiry_date: StoredGoogleCalendarTokenRow['expiry_date']
-): number | null {
+function expiryDateToMs(expiry_date: StoredGoogleCalendarTokenRow['expiry_date']): number | null {
   if (expiry_date == null) return null;
   if (typeof expiry_date === 'number' && Number.isFinite(expiry_date)) {
     return expiry_date;
@@ -167,9 +159,7 @@ function expiryDateToMs(
 }
 
 function stateSecret() {
-  return (
-    process.env.GOOGLE_OAUTH_STATE_SECRET ?? requiredEnv('GOOGLE_CLIENT_SECRET')
-  );
+  return process.env.GOOGLE_OAUTH_STATE_SECRET ?? requiredEnv('GOOGLE_CLIENT_SECRET');
 }
 
 function base64Url(value: string) {
@@ -177,10 +167,7 @@ function base64Url(value: string) {
 }
 
 function signStatePayload(payload: string) {
-  return crypto
-    .createHmac('sha256', stateSecret())
-    .update(payload)
-    .digest('base64url');
+  return crypto.createHmac('sha256', stateSecret()).update(payload).digest('base64url');
 }
 
 export function createGoogleOAuthState(userId: string) {
@@ -201,12 +188,7 @@ export function verifyGoogleOAuthState(state: string, expectedUserId: string) {
   const expectedSignature = signStatePayload(payload);
   if (signature.length !== expectedSignature.length) return false;
 
-  if (
-    !crypto.timingSafeEqual(
-      Buffer.from(signature),
-      Buffer.from(expectedSignature)
-    )
-  ) {
+  if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature))) {
     return false;
   }
 
@@ -256,34 +238,28 @@ async function upsertCalendarToken(userId: string, token: GoogleTokenResponse) {
   const expiryMs = Date.now() + token.expires_in * 1000;
   const { url, key } = getSupabaseConfig();
 
-  const response = await fetch(
-    `${url}/rest/v1/${TOKEN_TABLE}?on_conflict=user_id`,
-    {
-      method: 'POST',
-      headers: {
-        apikey: key,
-        Authorization: `Bearer ${key}`,
-        'Content-Type': 'application/json',
-        Prefer: 'resolution=merge-duplicates'
-      },
-      body: JSON.stringify({
-        user_id: userId,
-        access_token: token.access_token,
-        refresh_token: token.refresh_token ?? existing?.refresh_token ?? null,
-        expiry_date: expiryMs
-      })
-    }
-  );
+  const response = await fetch(`${url}/rest/v1/${TOKEN_TABLE}?on_conflict=user_id`, {
+    method: 'POST',
+    headers: {
+      apikey: key,
+      Authorization: `Bearer ${key}`,
+      'Content-Type': 'application/json',
+      Prefer: 'resolution=merge-duplicates'
+    },
+    body: JSON.stringify({
+      user_id: userId,
+      access_token: token.access_token,
+      refresh_token: token.refresh_token ?? existing?.refresh_token ?? null,
+      expiry_date: expiryMs
+    })
+  });
 
   if (!response.ok) {
     throw new Error(`Supabase token upsert failed: ${await response.text()}`);
   }
 }
 
-export async function storeGoogleCalendarToken(
-  userId: string,
-  token: GoogleTokenResponse
-) {
+export async function storeGoogleCalendarToken(userId: string, token: GoogleTokenResponse) {
   await upsertCalendarToken(userId, token);
 }
 
@@ -295,16 +271,13 @@ export async function getStoredCalendarToken(userId: string) {
     limit: '1'
   });
 
-  const response = await fetch(
-    `${url}/rest/v1/${TOKEN_TABLE}?${params.toString()}`,
-    {
-      headers: {
-        apikey: key,
-        Authorization: `Bearer ${key}`
-      },
-      cache: 'no-store'
-    }
-  );
+  const response = await fetch(`${url}/rest/v1/${TOKEN_TABLE}?${params.toString()}`, {
+    headers: {
+      apikey: key,
+      Authorization: `Bearer ${key}`
+    },
+    cache: 'no-store'
+  });
 
   if (!response.ok) {
     throw new Error(`Supabase token lookup failed: ${await response.text()}`);
@@ -314,14 +287,9 @@ export async function getStoredCalendarToken(userId: string) {
   return rows[0] ?? null;
 }
 
-async function refreshAccessToken(
-  userId: string,
-  token: StoredGoogleCalendarTokenRow
-) {
+async function refreshAccessToken(userId: string, token: StoredGoogleCalendarTokenRow) {
   if (!token.refresh_token) {
-    throw new Error(
-      'Google Calendar refresh token is missing. Reconnect Google Calendar.'
-    );
+    throw new Error('Google Calendar refresh token is missing. Reconnect Google Calendar.');
   }
 
   const response = await fetch(GOOGLE_TOKEN_URL, {
@@ -348,6 +316,28 @@ async function refreshAccessToken(
 
 export async function hasGoogleCalendarConnection(userId: string) {
   return Boolean(await getStoredCalendarToken(userId));
+}
+
+export async function disconnectGoogleCalendar(userId: string) {
+  const { url, key } = getSupabaseConfig();
+  const params = new URLSearchParams({
+    user_id: `eq.${userId}`
+  });
+
+  const response = await fetch(`${url}/rest/v1/${TOKEN_TABLE}?${params.toString()}`, {
+    method: 'DELETE',
+    headers: {
+      apikey: key,
+      Authorization: `Bearer ${key}`
+    },
+    cache: 'no-store'
+  });
+
+  if (!response.ok) {
+    throw new Error(`Supabase token delete failed: ${await response.text()}`);
+  }
+
+  return true;
 }
 
 export async function getValidGoogleAccessToken(userId: string) {
@@ -393,9 +383,7 @@ export async function listGoogleCalendarEvents(userId: string) {
   }
 
   if (!colorsResponse.ok) {
-    throw new Error(
-      `Google Calendar colors.get failed: ${await colorsResponse.text()}`
-    );
+    throw new Error(`Google Calendar colors.get failed: ${await colorsResponse.text()}`);
   }
 
   const calendarList = (await calendarListResponse.json()) as {
@@ -403,9 +391,7 @@ export async function listGoogleCalendarEvents(userId: string) {
   };
   const colors = (await colorsResponse.json()) as GoogleCalendarColors;
   const calendars =
-    calendarList.items?.filter(
-      (calendar) => calendar.selected && !calendar.hidden
-    ) ?? [];
+    calendarList.items?.filter((calendar) => calendar.selected && !calendar.hidden) ?? [];
 
   const eventLists = await Promise.all(
     calendars.map(async (calendar) => {
@@ -426,16 +412,12 @@ export async function listGoogleCalendarEvents(userId: string) {
       );
 
       if (!response.ok) {
-        throw new Error(
-          `Google Calendar events.list failed: ${await response.text()}`
-        );
+        throw new Error(`Google Calendar events.list failed: ${await response.text()}`);
       }
 
       const data = (await response.json()) as { items?: GoogleCalendarEvent[] };
       return (data.items ?? []).map((event) => {
-        const eventColor = event.colorId
-          ? colors.event?.[event.colorId]
-          : undefined;
+        const eventColor = event.colorId ? colors.event?.[event.colorId] : undefined;
 
         return {
           ...event,
@@ -476,9 +458,7 @@ export async function updateGoogleCalendarEvent(
   );
 
   if (!response.ok) {
-    throw new Error(
-      `Google Calendar events.patch failed: ${await response.text()}`
-    );
+    throw new Error(`Google Calendar events.patch failed: ${await response.text()}`);
   }
 
   return {
@@ -507,9 +487,7 @@ export async function deleteGoogleCalendarEvent(
   );
 
   if (!response.ok) {
-    throw new Error(
-      `Google Calendar events.delete failed: ${await response.text()}`
-    );
+    throw new Error(`Google Calendar events.delete failed: ${await response.text()}`);
   }
 
   return true;

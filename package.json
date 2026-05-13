@@ -15,7 +15,10 @@
     "lint:strict": "oxlint --deny-warnings",
     "format": "oxfmt --write .",
     "format:check": "oxfmt --check .",
-    "prepare": "husky"
+    "prepare": "husky",
+    "db:seed:phase1": "bun scripts/seedPhase1.ts",
+    "db:matching:phase1": "bun scripts/runPhase1Matching.ts",
+    "db:matching:print": "bun scripts/printTopMatches.ts"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.39.1",
@@ -52,6 +55,7 @@
     "@radix-ui/react-toggle": "^1.1.10",
     "@radix-ui/react-toggle-group": "^1.1.11",
     "@radix-ui/react-tooltip": "^1.2.8",
+    "@supabase/supabase-js": "^2.57.4",
     "@sentry/nextjs": "^10.45.0",
     "@tabler/icons-react": "^3.40.0",
     "@tailwindcss/postcss": "^4.2.2",

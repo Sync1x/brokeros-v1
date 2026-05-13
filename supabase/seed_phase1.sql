@@ -1,0 +1,3 @@
+-- BrokerOS Phase 1 seed data is applied via TypeScript (service role) for repeatable runs.
+-- Command: bun run db:seed:phase1
+-- Requires: migration `20260512100000_phase_1_data_foundation.sql` applied first.

@@ -10,6 +10,8 @@ import {
   TableRow
 } from '@/components/ui/table';
 import { brokerLeads, brokerListings, brokerMatches } from '@/constants/brokeros-mock-data';
+import { LeadNameHoverCard } from '@/features/leads/components/lead-name-hover-card';
+import { brokerLeadHoverProfile } from '@/features/leads/utils/lead-hover-profile';
 
 function scoreClass(score: number) {
   if (score >= 90) return 'border-brokeros-success/60 text-brokeros-success';
@@ -48,9 +50,11 @@ export default function MatchesPage() {
                     </Link>
                   </TableCell>
                   <TableCell>
-                    <Link href={`/leads/${lead.id}`} className='hover:text-primary'>
-                      {lead.name}
-                    </Link>
+                    <LeadNameHoverCard profile={brokerLeadHoverProfile(lead)}>
+                      <Link href={`/leads/${lead.id}`} className='hover:text-primary'>
+                        {lead.name}
+                      </Link>
+                    </LeadNameHoverCard>
                   </TableCell>
                   <TableCell>
                     <Link href={`/listings/${listing.id}`} className='hover:text-primary'>

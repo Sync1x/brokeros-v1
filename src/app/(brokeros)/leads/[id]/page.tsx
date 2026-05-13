@@ -1,6 +1,8 @@
 import PageContainer from '@/components/layout/page-container';
 import { Badge } from '@/components/ui/badge';
 import { brokerLeads, brokerMatches } from '@/constants/brokeros-mock-data';
+import { LeadNameHoverCard } from '@/features/leads/components/lead-name-hover-card';
+import { brokerLeadHoverProfile } from '@/features/leads/utils/lead-hover-profile';
 import { notFound } from 'next/navigation';
 
 export default async function LeadDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -17,6 +19,11 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
     <PageContainer pageTitle={lead.name} pageDescription={`${lead.intent} in ${lead.desiredArea}.`}>
       <div className='grid gap-3 xl:grid-cols-[0.8fr_1.2fr]'>
         <div className='bg-background border-y p-2.5'>
+          <LeadNameHoverCard profile={brokerLeadHoverProfile(lead)}>
+            <h2 className='mb-2 text-sm font-semibold underline-offset-4 hover:text-primary hover:underline'>
+              {lead.name}
+            </h2>
+          </LeadNameHoverCard>
           <Badge variant='outline' className='font-mono text-[0.65rem] uppercase'>
             {lead.temperature}
           </Badge>

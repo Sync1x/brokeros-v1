@@ -5,6 +5,9 @@ import type { ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { brokerLeads, brokerListings, brokerMatches } from '@/constants/brokeros-mock-data';
+import { LeadNameHoverCard } from '@/features/leads/components/lead-name-hover-card';
+import { brokerLeadHoverProfile } from '@/features/leads/utils/lead-hover-profile';
+import type { Lead } from '@/types/brokeros';
 
 export function MatchInspector() {
   const pathname = usePathname();
@@ -20,7 +23,16 @@ export function MatchInspector() {
     const matches = brokerMatches.filter((match) => match.leadId === lead.id);
 
     return (
-      <InspectorShell eyebrow='Selected Lead' title={lead.name}>
+      <InspectorShell
+        eyebrow='Selected Lead'
+        title={
+          <LeadNameHoverCard profile={brokerLeadHoverProfile(lead)}>
+            <span className='underline-offset-4 hover:text-primary hover:underline'>
+              {lead.name}
+            </span>
+          </LeadNameHoverCard>
+        }
+      >
         <dl className='divide-y text-xs'>
           <InspectorRow label='Budget' value={lead.budget} mono />
           <InspectorRow label='Area' value={lead.desiredArea} />
@@ -66,6 +78,7 @@ export function MatchInspector() {
                 href={`/matches/${match.id}`}
                 title={lead.name}
                 meta={`${match.score}% / ${match.nextStep}`}
+                lead={lead}
               />
             );
           })}
@@ -80,9 +93,31 @@ export function MatchInspector() {
   const listing = brokerListings.find((item) => item.id === match.listingId)!;
 
   return (
-    <InspectorShell eyebrow='Selected Match' title={`${lead.name} → ${listing.neighborhood}`}>
+    <InspectorShell
+      eyebrow='Selected Match'
+      title={
+        <>
+          <LeadNameHoverCard profile={brokerLeadHoverProfile(lead)}>
+            <span className='underline-offset-4 hover:text-primary hover:underline'>
+              {lead.name}
+            </span>
+          </LeadNameHoverCard>
+          {' -> '}
+          {listing.neighborhood}
+        </>
+      }
+    >
       <dl className='divide-y text-xs'>
-        <InspectorRow label='Lead' value={lead.name} />
+        <InspectorRow
+          label='Lead'
+          value={
+            <LeadNameHoverCard profile={brokerLeadHoverProfile(lead)}>
+              <span className='underline-offset-4 hover:text-primary hover:underline'>
+                {lead.name}
+              </span>
+            </LeadNameHoverCard>
+          }
+        />
         <InspectorRow label='Listing' value={listing.address} />
         <InspectorRow label='Score' value={`${match.score}%`} mono />
         <InspectorRow label='Status' value={match.status} mono />
@@ -105,7 +140,7 @@ function InspectorShell({
   children
 }: {
   eyebrow: string;
-  title: string;
+  title: ReactNode;
   children: ReactNode;
 }) {
   return (
@@ -138,7 +173,7 @@ function InspectorRow({
   mono = false
 }: {
   label: string;
-  value: string;
+  value: ReactNode;
   mono?: boolean;
 }) {
   return (
@@ -151,10 +186,28 @@ function InspectorRow({
   );
 }
 
-function RelatedLink({ href, title, meta }: { href: string; title: string; meta: string }) {
+function RelatedLink({
+  href,
+  title,
+  meta,
+  lead
+}: {
+  href: string;
+  title: string;
+  meta: string;
+  lead?: Lead;
+}) {
   return (
     <Link href={href} className='block border-t py-2 first:border-t-0 hover:bg-muted/20'>
-      <span className='block truncate text-xs'>{title}</span>
+      {lead ? (
+        <LeadNameHoverCard profile={brokerLeadHoverProfile(lead)}>
+          <span className='block truncate text-xs underline-offset-4 hover:text-primary hover:underline'>
+            {title}
+          </span>
+        </LeadNameHoverCard>
+      ) : (
+        <span className='block truncate text-xs'>{title}</span>
+      )}
       <span className='mt-0.5 block truncate font-mono text-[0.68rem] text-muted-foreground uppercase'>
         {meta}
       </span>
