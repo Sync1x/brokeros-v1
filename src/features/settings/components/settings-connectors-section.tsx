@@ -28,22 +28,22 @@ interface ConnectorConfig {
   connectedLabel: string;
   description: string;
   icon: ElementType<{ className?: string }>;
-  isLive: boolean;
+  isLive?: boolean;
   isConnected: boolean;
-  connectHref: string;
-  settingsAction: () => void;
+  connectHref?: string;
+  settingsAction?: () => void;
 }
 
 function GoogleCalendarIcon({ className }: { className?: string }) {
   return (
     <span
       className={cn(
-        'grid size-7 place-items-center rounded-sm border bg-background shadow-xs',
+        'grid size-6 place-items-center rounded-sm border bg-background shadow-xs',
         className
       )}
       aria-hidden='true'
     >
-      <span className='grid size-4 grid-cols-2 overflow-hidden rounded-[3px] border border-background'>
+      <span className='grid size-3.5 grid-cols-2 overflow-hidden rounded-[3px] border border-background'>
         <span className='bg-blue-500' />
         <span className='bg-red-500' />
         <span className='bg-yellow-400' />
@@ -53,20 +53,105 @@ function GoogleCalendarIcon({ className }: { className?: string }) {
   );
 }
 
+function GmailIcon({ className }: { className?: string }) {
+  return (
+    <span
+      className={cn(
+        'grid size-6 place-items-center rounded-sm border bg-background text-red-500 shadow-xs',
+        className
+      )}
+      aria-hidden='true'
+    >
+      <Icons.inbox className='size-3.5' />
+    </span>
+  );
+}
+
+function SmsIcon({ className }: { className?: string }) {
+  return (
+    <span
+      className={cn(
+        'grid size-6 place-items-center rounded-sm border bg-background text-green-600 shadow-xs',
+        className
+      )}
+      aria-hidden='true'
+    >
+      <Icons.chat className='size-3.5' />
+    </span>
+  );
+}
+
+function OutlookCalendarIcon({ className }: { className?: string }) {
+  return (
+    <span
+      className={cn(
+        'grid size-6 place-items-center rounded-sm border bg-background text-blue-600 shadow-xs',
+        className
+      )}
+      aria-hidden='true'
+    >
+      <Icons.calendar className='size-3.5' />
+    </span>
+  );
+}
+
+function OutlookMailIcon({ className }: { className?: string }) {
+  return (
+    <span
+      className={cn(
+        'grid size-6 place-items-center rounded-sm border bg-background text-sky-600 shadow-xs',
+        className
+      )}
+      aria-hidden='true'
+    >
+      <Icons.inbox className='size-3.5' />
+    </span>
+  );
+}
+
+function DriveIcon({ className }: { className?: string }) {
+  return (
+    <span
+      className={cn(
+        'grid size-6 place-items-center rounded-sm border bg-background text-yellow-600 shadow-xs',
+        className
+      )}
+      aria-hidden='true'
+    >
+      <Icons.folderOpen className='size-3.5' />
+    </span>
+  );
+}
+
+function OneDriveIcon({ className }: { className?: string }) {
+  return (
+    <span
+      className={cn(
+        'grid size-6 place-items-center rounded-sm border bg-background text-blue-500 shadow-xs',
+        className
+      )}
+      aria-hidden='true'
+    >
+      <Icons.workspace className='size-3.5' />
+    </span>
+  );
+}
+
 function ConnectorBlock({ connector }: { connector: ConnectorConfig }) {
   const Icon = connector.icon;
   const statusText = connector.isConnected ? connector.connectedLabel : connector.statusLabel;
+  const isActionable = connector.isLive && connector.connectHref;
 
   return (
-    <article className='bg-background hover:bg-muted/15 grid min-h-0 grid-cols-[1fr_auto] gap-2 rounded-md border p-2.5 transition-colors'>
-      <div className='flex min-w-0 gap-2'>
+    <article className='bg-background hover:bg-muted/15 grid min-h-0 w-full max-w-44 grid-cols-[1fr_auto] gap-1.5 rounded-md border p-2 transition-colors'>
+      <div className='flex min-w-0 gap-1.5'>
         <Icon className='shrink-0' />
         <div className='min-w-0'>
-          <div className='flex flex-wrap items-center gap-x-2 gap-y-1'>
-            <h3 className='truncate text-xs font-semibold'>{connector.name}</h3>
+          <div className='flex items-center gap-1.5'>
+            <h3 className='truncate text-[0.72rem] font-semibold leading-4'>{connector.name}</h3>
             <span
               className={cn(
-                'text-[0.62rem]',
+                'shrink-0 text-[0.58rem] leading-4',
                 connector.isConnected
                   ? 'text-green-600 dark:text-green-400'
                   : 'text-muted-foreground'
@@ -75,7 +160,7 @@ function ConnectorBlock({ connector }: { connector: ConnectorConfig }) {
               {statusText}
             </span>
           </div>
-          <p className='mt-1 max-w-64 text-[0.7rem] leading-4 text-muted-foreground'>
+          <p className='mt-0.5 line-clamp-2 text-[0.64rem] leading-3.5 text-muted-foreground'>
             {connector.description}
           </p>
         </div>
@@ -87,23 +172,34 @@ function ConnectorBlock({ connector }: { connector: ConnectorConfig }) {
             type='button'
             variant='ghost'
             size='icon'
-            className='size-7 text-muted-foreground'
+            className='size-6 text-muted-foreground'
             onClick={connector.settingsAction}
             aria-label={`Open ${connector.name} settings`}
           >
             <Icons.settings />
           </Button>
-        ) : (
+        ) : isActionable ? (
           <Button
             asChild
             variant='ghost'
             size='icon'
-            className='size-7 text-muted-foreground'
+            className='size-6 text-muted-foreground'
             aria-label={`Connect ${connector.name}`}
           >
-            <Link href={connector.connectHref}>
+            <Link href={connector.connectHref ?? '#'}>
               <Icons.add />
             </Link>
+          </Button>
+        ) : (
+          <Button
+            type='button'
+            variant='ghost'
+            size='icon'
+            className='size-6 text-muted-foreground'
+            disabled
+            aria-label={`${connector.name} coming soon`}
+          >
+            <Icons.lock />
           </Button>
         )}
       </div>
@@ -241,7 +337,7 @@ export function SettingsConnectorsSection() {
         name: 'Google Calendar',
         statusLabel: 'Live',
         connectedLabel: 'Connected',
-        description: 'Sync your schedule, meetings, tasks, and showing-related events.',
+        description: 'Sync meetings and showings.',
         icon: GoogleCalendarIcon,
         isLive: true,
         isConnected: Boolean(status?.connected),
@@ -249,6 +345,60 @@ export function SettingsConnectorsSection() {
         settingsAction: () => {
           void loadGoogleCalendarStatus().finally(() => setIsSettingsOpen(true));
         }
+      },
+      {
+        id: 'gmail',
+        name: 'Gmail',
+        statusLabel: 'Soon',
+        connectedLabel: 'Connected',
+        description: 'Email sync and send actions.',
+        icon: GmailIcon,
+        isConnected: false
+      },
+      {
+        id: 'sms',
+        name: 'SMS',
+        statusLabel: 'Soon',
+        connectedLabel: 'Connected',
+        description: 'Text lead follow-ups.',
+        icon: SmsIcon,
+        isConnected: false
+      },
+      {
+        id: 'outlook-calendar',
+        name: 'Outlook Calendar',
+        statusLabel: 'Soon',
+        connectedLabel: 'Connected',
+        description: 'Microsoft calendar sync.',
+        icon: OutlookCalendarIcon,
+        isConnected: false
+      },
+      {
+        id: 'outlook-mail',
+        name: 'Outlook Mail',
+        statusLabel: 'Soon',
+        connectedLabel: 'Connected',
+        description: 'Microsoft mail sync.',
+        icon: OutlookMailIcon,
+        isConnected: false
+      },
+      {
+        id: 'google-drive',
+        name: 'Google Drive',
+        statusLabel: 'Soon',
+        connectedLabel: 'Connected',
+        description: 'Docs and file access.',
+        icon: DriveIcon,
+        isConnected: false
+      },
+      {
+        id: 'onedrive',
+        name: 'OneDrive',
+        statusLabel: 'Soon',
+        connectedLabel: 'Connected',
+        description: 'Microsoft file access.',
+        icon: OneDriveIcon,
+        isConnected: false
       }
     ],
     [status?.connected]
@@ -261,7 +411,7 @@ export function SettingsConnectorsSection() {
         <p className='mt-1 text-xs text-muted-foreground'>Connect external tools to BrokerOS.</p>
       </div>
 
-      <div className='grid gap-2 sm:grid-cols-2 xl:grid-cols-3'>
+      <div className='grid grid-cols-[repeat(auto-fill,minmax(10.25rem,11rem))] gap-2'>
         {connectors.map((connector) => (
           <ConnectorBlock key={connector.id} connector={connector} />
         ))}

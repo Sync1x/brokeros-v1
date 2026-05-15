@@ -12,6 +12,13 @@ import {
   DialogHeader,
   DialogTitle
 } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Icons } from '@/components/icons';
@@ -20,7 +27,7 @@ import { cn } from '@/lib/utils';
 
 type LeadType = 'buyer' | 'seller';
 type SortKey = 'recent' | 'budget' | 'name';
-type LeadStatus = 'Active' | 'Hot' | 'Matched' | 'Prospect' | 'Stale' | 'New' | 'Under contract';
+type LeadStatus = 'Hot' | 'Prospect' | 'Stale' | 'Active' | 'Inactive';
 const LOCAL_LEADS_EVENT = 'brokeros:local-leads-updated';
 
 interface HouseProfile {
@@ -138,7 +145,7 @@ const buyerLeadSeeds = [
     id: 'buyer-001',
     type: 'buyer',
     name: 'James Okafor',
-    status: 'New',
+    status: 'Prospect',
     phone: '(312) 555-0140',
     email: 'james.okafor@example.com',
     preferredContactMethod: 'Text',
@@ -206,7 +213,7 @@ const buyerLeadSeeds = [
     id: 'buyer-003',
     type: 'buyer',
     name: 'Sarah Chen',
-    status: 'Matched',
+    status: 'Active',
     phone: '(312) 555-0164',
     email: 'sarah.chen@example.com',
     preferredContactMethod: 'Email',
@@ -345,7 +352,7 @@ const sellerLeadSeeds = [
     id: 'seller-001',
     type: 'seller',
     name: 'Robert Hunt',
-    status: 'New',
+    status: 'Prospect',
     phone: '(312) 555-0107',
     email: 'robert.hunt@example.com',
     preferredContactMethod: 'Call',
@@ -396,7 +403,7 @@ const sellerLeadSeeds = [
     id: 'seller-002',
     type: 'seller',
     name: 'Mei Tanaka',
-    status: 'Under contract',
+    status: 'Active',
     phone: '(773) 555-0148',
     email: 'mei.tanaka@example.com',
     preferredContactMethod: 'Email',
@@ -569,15 +576,18 @@ const sortTabs: { key: SortKey; label: string }[] = [
   { key: 'name', label: 'Name' }
 ];
 
-const statusOptions: LeadStatus[] = [
-  'Active',
-  'Hot',
-  'Matched',
-  'Prospect',
-  'Stale',
-  'New',
-  'Under contract'
-];
+const statusOptions: LeadStatus[] = ['Hot', 'Prospect', 'Stale', 'Active', 'Inactive'];
+
+function normalizeLeadStatus(value: string): LeadStatus {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'hot') return 'Hot';
+  if (normalized === 'stale') return 'Stale';
+  if (normalized === 'active') return 'Active';
+  if (normalized === 'inactive') return 'Inactive';
+  if (normalized === 'new') return 'Prospect';
+  if (normalized === 'under contract') return 'Active';
+  return 'Prospect';
+}
 
 function parseCurrency(value: string) {
   const numeric = Number(value.replaceAll(/[^0-9.]/g, ''));
@@ -657,10 +667,9 @@ function crmLeadHoverProfile(lead: CrmLead): LeadHoverProfile {
 function statusClass(status: string) {
   if (status === 'Active') return 'border-green-500 bg-green-500 text-white';
   if (status === 'Hot') return 'border-red-500 bg-red-500 text-white';
-  if (status === 'Matched') return 'border-purple-500 bg-purple-500 text-white';
   if (status === 'Prospect') return 'border-orange-500 bg-orange-500 text-white';
   if (status === 'Stale') return 'border-yellow-400 bg-yellow-400 text-black';
-  if (status === 'Under contract') return 'border-blue-500 bg-blue-500 text-white';
+  if (status === 'Inactive') return 'border-muted-foreground/45 bg-muted text-muted-foreground';
   return 'border-muted-foreground/40 bg-background text-foreground';
 }
 
@@ -746,7 +755,7 @@ function toBuyerLead(formData: FormData, rank: number): BuyerLead {
     id: makeId('buyer'),
     type: 'buyer',
     name: fieldOrDash(formData, 'name'),
-    status: (fieldValue(formData, 'status') || 'Prospect') as LeadStatus,
+    status: normalizeLeadStatus(fieldValue(formData, 'status')),
     phone: fieldOrDash(formData, 'phone'),
     email: fieldOrDash(formData, 'email'),
     preferredContactMethod: fieldOrDash(formData, 'preferredContactMethod'),
@@ -784,7 +793,7 @@ function toSellerLead(formData: FormData, rank: number): SellerLead {
     id: makeId('seller'),
     type: 'seller',
     name: fieldOrDash(formData, 'name'),
-    status: (fieldValue(formData, 'status') || 'Prospect') as LeadStatus,
+    status: normalizeLeadStatus(fieldValue(formData, 'status')),
     phone: fieldOrDash(formData, 'phone'),
     email: fieldOrDash(formData, 'email'),
     preferredContactMethod: fieldOrDash(formData, 'preferredContactMethod'),
@@ -814,7 +823,7 @@ function editedLeadFromForm(lead: CrmLead, formData: FormData): CrmLead {
   const base = {
     ...lead,
     name: fieldOrDash(formData, 'name'),
-    status: (fieldValue(formData, 'status') || lead.status) as LeadStatus,
+    status: normalizeLeadStatus(fieldValue(formData, 'status') || lead.status),
     phone: fieldOrDash(formData, 'phone'),
     email: fieldOrDash(formData, 'email'),
     preferredContactMethod: fieldOrDash(formData, 'preferredContactMethod'),
@@ -870,7 +879,7 @@ function editedLeadFromForm(lead: CrmLead, formData: FormData): CrmLead {
 
 function csvRowToLead(row: Record<string, string>, rank: number): CrmLead {
   const type = row.type?.toLowerCase() === 'seller' ? 'seller' : 'buyer';
-  const status = (row.status || 'Prospect') as LeadStatus;
+  const status = normalizeLeadStatus(row.status || 'Prospect');
   const base = {
     id: makeId(type),
     name: row.fullName || 'Unnamed lead',
@@ -945,14 +954,58 @@ function publishLocalSearchLeads(leads: CrmLead[]) {
   );
 }
 
-function StatusBadge({ status }: { status: string }) {
+function StatusBadge({
+  status,
+  onStatusChange
+}: {
+  status: LeadStatus;
+  onStatusChange?: (status: LeadStatus) => void;
+}) {
+  if (!onStatusChange) {
+    return (
+      <Badge
+        variant='outline'
+        className={cn('font-mono text-[0.62rem] uppercase', statusClass(status))}
+      >
+        {status}
+      </Badge>
+    );
+  }
+
   return (
-    <Badge
-      variant='outline'
-      className={cn('font-mono text-[0.62rem] uppercase', statusClass(status))}
-    >
-      {status}
-    </Badge>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Badge
+          asChild
+          variant='outline'
+          className={cn(
+            'font-mono text-[0.62rem] uppercase hover:brightness-95 focus-visible:ring-ring/50',
+            statusClass(status)
+          )}
+        >
+          <button
+            type='button'
+            aria-label={`Change lead status from ${status}`}
+            onClick={(event) => event.stopPropagation()}
+          >
+            {status}
+            <Icons.chevronDown className='size-3' />
+          </button>
+        </Badge>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align='end' className='min-w-36'>
+        <DropdownMenuRadioGroup
+          value={status}
+          onValueChange={(value) => onStatusChange(normalizeLeadStatus(value))}
+        >
+          {statusOptions.map((option) => (
+            <DropdownMenuRadioItem key={option} value={option} className='text-xs'>
+              {option}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -1075,6 +1128,7 @@ interface LeadColumnProps<T extends CrmLead> {
   selectedLeadId?: string;
   onSortChange: (value: SortKey) => void;
   onSelectLead: (lead: T) => void;
+  onStatusChange: (lead: T, status: LeadStatus) => void;
 }
 
 function LeadColumn<T extends CrmLead>({
@@ -1083,7 +1137,8 @@ function LeadColumn<T extends CrmLead>({
   sort,
   selectedLeadId,
   onSortChange,
-  onSelectLead
+  onSelectLead,
+  onStatusChange
 }: LeadColumnProps<T>) {
   return (
     <section className='bg-background min-w-0 border-y md:border-x md:first:border-r-0'>
@@ -1114,12 +1169,18 @@ function LeadColumn<T extends CrmLead>({
             const isSelected = lead.id === selectedLeadId;
 
             return (
-              <button
+              <div
                 key={lead.id}
-                type='button'
+                role='button'
+                tabIndex={0}
                 onClick={() => onSelectLead(lead)}
+                onKeyDown={(event) => {
+                  if (event.key !== 'Enter' && event.key !== ' ') return;
+                  event.preventDefault();
+                  onSelectLead(lead);
+                }}
                 className={cn(
-                  'grid w-full grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3 border-b px-3 py-2.5 text-left text-sm transition-colors',
+                  'grid w-full cursor-pointer grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3 border-b px-3 py-2.5 text-left text-sm transition-colors',
                   'hover:bg-muted/50 focus-visible:ring-ring/35 focus-visible:ring-2 focus-visible:outline-none',
                   isSelected && 'bg-muted/70 shadow-[inset_3px_0_0_var(--primary)]'
                 )}
@@ -1135,8 +1196,11 @@ function LeadColumn<T extends CrmLead>({
                   </span>
                 </span>
                 <span className='font-mono text-xs whitespace-nowrap'>{leadValue(lead)}</span>
-                <StatusBadge status={lead.status} />
-              </button>
+                <StatusBadge
+                  status={lead.status}
+                  onStatusChange={(status) => onStatusChange(lead, status)}
+                />
+              </div>
             );
           })}
         </div>
@@ -1451,13 +1515,15 @@ function LeadProfilePanel({
   onClose,
   onNoteChange,
   onEditLead,
-  onEditHouseProfile
+  onEditHouseProfile,
+  onStatusChange
 }: {
   lead: CrmLead;
   onClose: () => void;
   onNoteChange: (leadId: string, value: string) => void;
   onEditLead: (lead: CrmLead) => void;
   onEditHouseProfile: (lead: SellerLead) => void;
+  onStatusChange: (lead: CrmLead, status: LeadStatus) => void;
 }) {
   return (
     <aside className='bg-background fixed inset-y-0 right-0 z-50 flex w-[min(100vw,410px)] flex-col border-l lg:static lg:z-auto lg:w-[380px] xl:w-[410px]'>
@@ -1470,7 +1536,10 @@ function LeadProfilePanel({
                   {lead.name}
                 </h2>
               </LeadNameHoverCard>
-              <StatusBadge status={lead.status} />
+              <StatusBadge
+                status={lead.status}
+                onStatusChange={(status) => onStatusChange(lead, status)}
+              />
             </div>
             <p className='text-muted-foreground mt-1 text-xs uppercase'>{lead.type}</p>
           </div>
@@ -1951,6 +2020,11 @@ export function LeadsWorkspace() {
     setSelectedLeadId(lead.id);
   }
 
+  function updateLeadStatus(lead: CrmLead, status: LeadStatus) {
+    const updatedLead = { ...lead, status };
+    saveLead(updatedLead);
+  }
+
   function saveHouseProfile(leadId: string, profile: HouseProfile) {
     setSellerLeads((current) =>
       current.map((lead) => (lead.id === leadId ? { ...lead, houseProfile: profile } : lead))
@@ -1986,6 +2060,7 @@ export function LeadsWorkspace() {
             selectedLeadId={selectedLead?.id}
             onSortChange={setBuyerSort}
             onSelectLead={selectLead}
+            onStatusChange={updateLeadStatus}
           />
           <LeadColumn
             title='Sellers'
@@ -1994,6 +2069,7 @@ export function LeadsWorkspace() {
             selectedLeadId={selectedLead?.id}
             onSortChange={setSellerSort}
             onSelectLead={selectLead}
+            onStatusChange={updateLeadStatus}
           />
         </div>
         {selectedLead && (
@@ -2002,6 +2078,7 @@ export function LeadsWorkspace() {
             onNoteChange={updateNote}
             onEditLead={(lead) => setLeadToEdit(lead)}
             onEditHouseProfile={(lead) => setHouseProfileLead(lead)}
+            onStatusChange={updateLeadStatus}
             onClose={() => setSelectedLeadId('')}
           />
         )}
