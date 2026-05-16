@@ -3,9 +3,8 @@ import { GoogleCalendarWidget } from '@/features/calendar/components/google-cale
 import { getCommandActions, getCommandPace } from '@/features/command-center/api/service';
 import { CommandCenterWorkbench } from '@/features/command-center/components/command-center-workbench';
 
-export default function DashboardPage() {
-  const actions = getCommandActions();
-  const pace = getCommandPace();
+export default async function DashboardPage() {
+  const [actions, pace] = await Promise.all([getCommandActions(), getCommandPace()]);
 
   return (
     <PageContainer>

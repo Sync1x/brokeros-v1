@@ -9,7 +9,7 @@ import {
   TableHeader,
   TableRow
 } from '@/components/ui/table';
-import { brokerLeads, brokerListings, brokerMatches } from '@/constants/brokeros-mock-data';
+import { listBrokerMatches } from '@/features/brokeros/api/data';
 import { LeadNameHoverCard } from '@/features/leads/components/lead-name-hover-card';
 import { brokerLeadHoverProfile } from '@/features/leads/utils/lead-hover-profile';
 
@@ -19,7 +19,9 @@ function scoreClass(score: number) {
   return 'border-brokeros-danger/60 text-brokeros-danger';
 }
 
-export default function MatchesPage() {
+export default async function MatchesPage() {
+  const matches = await listBrokerMatches();
+
   return (
     <PageContainer
       pageTitle='Matches'
@@ -38,9 +40,9 @@ export default function MatchesPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {brokerMatches.map((match) => {
-              const lead = brokerLeads.find((item) => item.id === match.leadId)!;
-              const listing = brokerListings.find((item) => item.id === match.listingId)!;
+            {matches.map((match) => {
+              const lead = match.buyerLead;
+              const listing = match.houseProfile;
 
               return (
                 <TableRow key={match.id}>
@@ -50,16 +52,24 @@ export default function MatchesPage() {
                     </Link>
                   </TableCell>
                   <TableCell>
-                    <LeadNameHoverCard profile={brokerLeadHoverProfile(lead)}>
-                      <Link href={`/leads/${lead.id}`} className='hover:text-primary'>
-                        {lead.name}
-                      </Link>
-                    </LeadNameHoverCard>
+                    {lead ? (
+                      <LeadNameHoverCard profile={brokerLeadHoverProfile(lead)}>
+                        <Link href={`/leads/${lead.id}`} className='hover:text-primary'>
+                          {lead.name}
+                        </Link>
+                      </LeadNameHoverCard>
+                    ) : (
+                      <span className='text-muted-foreground'>Missing lead</span>
+                    )}
                   </TableCell>
                   <TableCell>
-                    <Link href={`/listings/${listing.id}`} className='hover:text-primary'>
-                      {listing.address}
-                    </Link>
+                    {listing ? (
+                      <Link href={`/listings/${listing.id}`} className='hover:text-primary'>
+                        {listing.address}
+                      </Link>
+                    ) : (
+                      <span className='text-muted-foreground'>Missing listing</span>
+                    )}
                   </TableCell>
                   <TableCell>
                     <Badge variant='outline' className={`font-mono ${scoreClass(match.score)}`}>

@@ -1,17 +1,20 @@
 import PageContainer from '@/components/layout/page-container';
 import { Badge } from '@/components/ui/badge';
-import { brokerListings, brokerMatches } from '@/constants/brokeros-mock-data';
+import { getBrokerHouseProfileById, listBrokerMatches } from '@/features/brokeros/api/data';
 import { notFound } from 'next/navigation';
 
 export default async function ListingDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const listing = brokerListings.find((item) => item.id === id);
+  const [listing, allMatches] = await Promise.all([
+    getBrokerHouseProfileById(id),
+    listBrokerMatches()
+  ]);
 
   if (!listing) {
     notFound();
   }
 
-  const matches = brokerMatches.filter((match) => match.listingId === listing.id);
+  const matches = allMatches.filter((match) => match.listingId === listing.id);
 
   return (
     <PageContainer pageTitle={listing.address} pageDescription={listing.signal}>

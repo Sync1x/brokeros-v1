@@ -1,19 +1,19 @@
 import PageContainer from '@/components/layout/page-container';
 import { Badge } from '@/components/ui/badge';
-import { brokerLeads, brokerMatches } from '@/constants/brokeros-mock-data';
+import { getBrokerLeadById, listBrokerMatches } from '@/features/brokeros/api/data';
 import { LeadNameHoverCard } from '@/features/leads/components/lead-name-hover-card';
 import { brokerLeadHoverProfile } from '@/features/leads/utils/lead-hover-profile';
 import { notFound } from 'next/navigation';
 
 export default async function LeadDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const lead = brokerLeads.find((item) => item.id === id);
+  const [lead, allMatches] = await Promise.all([getBrokerLeadById(id), listBrokerMatches()]);
 
   if (!lead) {
     notFound();
   }
 
-  const matches = brokerMatches.filter((match) => match.leadId === lead.id);
+  const matches = allMatches.filter((match) => match.leadId === lead.id);
 
   return (
     <PageContainer pageTitle={lead.name} pageDescription={`${lead.intent} in ${lead.desiredArea}.`}>

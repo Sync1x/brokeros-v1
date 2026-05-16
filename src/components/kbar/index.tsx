@@ -1,13 +1,6 @@
 'use client';
 import { navGroups } from '@/config/nav-config';
-import {
-  brokerActivity,
-  brokerDocuments,
-  brokerLeads,
-  brokerListings,
-  brokerMatches,
-  brokerTemplates
-} from '@/constants/brokeros-mock-data';
+import type { BrokerReadModel } from '@/features/brokeros/api/read-model-types';
 import { KBarAnimator, KBarPortal, KBarPositioner, KBarProvider, KBarSearch } from 'kbar';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
@@ -26,11 +19,18 @@ type LocalSearchLead = {
 };
 
 const LOCAL_LEADS_EVENT = 'brokeros:local-leads-updated';
+const EMPTY_READ_MODEL: BrokerReadModel = {
+  leads: [],
+  listings: [],
+  matches: []
+};
 
 export default function KBar({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const filteredGroups = useFilteredNavGroups(navGroups);
   const [localLeads, setLocalLeads] = useState<LocalSearchLead[]>([]);
+  const [readModel, setReadModel] = useState<BrokerReadModel>(EMPTY_READ_MODEL);
+  const [hasLoadedReadModel, setHasLoadedReadModel] = useState(false);
 
   useEffect(() => {
     function handleLocalLeads(event: Event) {
@@ -46,6 +46,34 @@ export default function KBar({ children }: { children: React.ReactNode }) {
 
     window.addEventListener(LOCAL_LEADS_EVENT, handleLocalLeads);
     return () => window.removeEventListener(LOCAL_LEADS_EVENT, handleLocalLeads);
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadBrokerData() {
+      try {
+        const response = await fetch('/api/brokeros/read-model');
+        if (!response.ok) throw new Error('Unable to load BrokerOS search data');
+        const data = (await response.json()) as BrokerReadModel;
+        if (isMounted) {
+          setReadModel(data);
+        }
+      } catch {
+        if (isMounted) {
+          setReadModel(EMPTY_READ_MODEL);
+        }
+      } finally {
+        if (isMounted) {
+          setHasLoadedReadModel(true);
+        }
+      }
+    }
+
+    void loadBrokerData();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // These action are for the navigation
@@ -88,7 +116,7 @@ export default function KBar({ children }: { children: React.ReactNode }) {
       return baseAction ? [baseAction, ...childActions] : childActions;
     });
 
-    const leadActions = brokerLeads.map((lead) => ({
+    const leadActions = readModel.leads.map((lead) => ({
       id: `lead-${lead.id}`,
       name: lead.name,
       keywords: `${lead.name} ${lead.desiredArea} ${lead.intent} ${lead.budget}`,
@@ -106,7 +134,7 @@ export default function KBar({ children }: { children: React.ReactNode }) {
       perform: () => navigateTo('/leads')
     }));
 
-    const listingActions = brokerListings.map((listing) => ({
+    const listingActions = readModel.listings.map((listing) => ({
       id: `listing-${listing.id}`,
       name: listing.address,
       keywords: `${listing.address} ${listing.neighborhood} ${listing.price} ${listing.status}`,
@@ -115,12 +143,14 @@ export default function KBar({ children }: { children: React.ReactNode }) {
       perform: () => navigateTo(`/listings/${listing.id}`)
     }));
 
-    const matchActions = brokerMatches.map((match) => {
-      const lead = brokerLeads.find((item) => item.id === match.leadId)!;
-      const listing = brokerListings.find((item) => item.id === match.listingId)!;
+    const matchActions = readModel.matches.flatMap((match) => {
+      const lead = match.buyerLead ?? readModel.leads.find((item) => item.id === match.leadId);
+      const listing =
+        match.houseProfile ?? readModel.listings.find((item) => item.id === match.listingId);
+      if (!lead || !listing) return [];
       return {
         id: `match-${match.id}`,
-        name: `${lead.name} → ${listing.address}`,
+        name: `${lead.name} -> ${listing.address}`,
         keywords: `${lead.name} ${listing.address} ${match.rationale} ${match.nextStep}`,
         section: 'Matches',
         subtitle: `${match.score}% / ${match.nextStep}`,
@@ -128,32 +158,21 @@ export default function KBar({ children }: { children: React.ReactNode }) {
       };
     });
 
-    const documentActions = brokerDocuments.map((document) => ({
-      id: `document-${document.id}`,
-      name: document.title,
-      keywords: `${document.title} ${document.client} ${document.type} ${document.status}`,
-      section: 'Documents',
-      subtitle: `${document.client} / ${document.status}`,
-      perform: () => navigateTo('/documents')
-    }));
-
-    const templateActions = brokerTemplates.map((template) => ({
-      id: `template-${template.id}`,
-      name: template.title,
-      keywords: `${template.title} ${template.category} ${template.description}`,
-      section: 'Templates',
-      subtitle: `${template.category} / ${template.usageCount} uses`,
-      perform: () => navigateTo('/templates')
-    }));
-
-    const activityActions = brokerActivity.map((activity) => ({
-      id: `activity-${activity.id}`,
-      name: `${activity.actor} ${activity.action} ${activity.subject}`,
-      keywords: `${activity.actor} ${activity.action} ${activity.subject} ${activity.time} ${activity.tone}`,
-      section: 'Activity',
-      subtitle: activity.time,
-      perform: () => navigateTo('/activity')
-    }));
+    const hasBrokerData =
+      readModel.leads.length > 0 || readModel.listings.length > 0 || readModel.matches.length > 0;
+    const emptyDataAction =
+      hasLoadedReadModel && !hasBrokerData
+        ? [
+            {
+              id: 'brokeros-empty-data',
+              name: 'No BrokerOS records found',
+              keywords: 'empty brokeros supabase records',
+              section: 'BrokerOS',
+              subtitle: 'Supabase returned no leads, listings, or matches',
+              perform: () => navigateTo('/dashboard')
+            }
+          ]
+        : [];
 
     return [
       ...navigationActions,
@@ -161,11 +180,9 @@ export default function KBar({ children }: { children: React.ReactNode }) {
       ...localLeadActions,
       ...listingActions,
       ...matchActions,
-      ...documentActions,
-      ...templateActions,
-      ...activityActions
+      ...emptyDataAction
     ];
-  }, [router, filteredGroups, localLeads]);
+  }, [router, filteredGroups, localLeads, readModel, hasLoadedReadModel]);
 
   return (
     <KBarProvider actions={actions}>

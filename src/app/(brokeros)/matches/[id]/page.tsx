@@ -1,20 +1,20 @@
 import PageContainer from '@/components/layout/page-container';
 import { Badge } from '@/components/ui/badge';
-import { brokerLeads, brokerListings, brokerMatches } from '@/constants/brokeros-mock-data';
+import { getBrokerMatchById } from '@/features/brokeros/api/data';
 import { LeadNameHoverCard } from '@/features/leads/components/lead-name-hover-card';
 import { brokerLeadHoverProfile } from '@/features/leads/utils/lead-hover-profile';
 import { notFound } from 'next/navigation';
 
 export default async function MatchDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const match = brokerMatches.find((item) => item.id === id);
+  const match = await getBrokerMatchById(id);
 
-  if (!match) {
+  if (!match || !match.buyerLead || !match.houseProfile) {
     notFound();
   }
 
-  const lead = brokerLeads.find((item) => item.id === match.leadId)!;
-  const listing = brokerListings.find((item) => item.id === match.listingId)!;
+  const lead = match.buyerLead;
+  const listing = match.houseProfile;
 
   return (
     <PageContainer
