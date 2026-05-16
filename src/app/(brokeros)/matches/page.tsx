@@ -12,6 +12,7 @@ import {
 import { listBrokerMatches } from '@/features/brokeros/api/data';
 import { LeadNameHoverCard } from '@/features/leads/components/lead-name-hover-card';
 import { brokerLeadHoverProfile } from '@/features/leads/utils/lead-hover-profile';
+import { RefreshMatchesButton } from '@/features/matches/components/refresh-matches-button';
 
 function scoreClass(score: number) {
   if (score >= 90) return 'border-brokeros-success/60 text-brokeros-success';
@@ -26,6 +27,7 @@ export default async function MatchesPage() {
     <PageContainer
       pageTitle='Matches'
       pageDescription='Ranked lead-to-listing pairings with action-ready rationale.'
+      pageHeaderAction={<RefreshMatchesButton />}
     >
       <div className='bg-background overflow-hidden border-y'>
         <Table>

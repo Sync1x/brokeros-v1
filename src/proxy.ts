@@ -10,7 +10,8 @@ const isProtectedRoute = createRouteMatcher([
   '/documents(.*)',
   '/templates(.*)',
   '/activity(.*)',
-  '/settings(.*)'
+  '/settings(.*)',
+  '/api/brokeros(.*)'
 ]);
 
 export default clerkMiddleware(async (auth, req: NextRequest) => {

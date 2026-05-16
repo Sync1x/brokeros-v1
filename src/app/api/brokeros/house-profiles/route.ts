@@ -4,6 +4,7 @@ import {
   listBrokerLeads,
   type BrokerHouseProfileMutationPayload
 } from '@/features/brokeros/api/data';
+import { requireBrokerosAuth } from '@/lib/auth/require-brokeros-auth';
 import { NextResponse } from 'next/server';
 
 type HouseProfileRequestBody = BrokerHouseProfileMutationPayload;
@@ -13,6 +14,9 @@ function isSellerLead(lead: Awaited<ReturnType<typeof listBrokerLeads>>[number])
 }
 
 export async function GET() {
+  const authResult = await requireBrokerosAuth();
+  if (authResult.unauthorizedResponse) return authResult.unauthorizedResponse;
+
   const [houseProfiles, leads] = await Promise.all([listBrokerHouseProfiles(), listBrokerLeads()]);
   const sellerLeads = leads.filter(isSellerLead);
 
@@ -20,6 +24,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const authResult = await requireBrokerosAuth();
+  if (authResult.unauthorizedResponse) return authResult.unauthorizedResponse;
+
   const body = (await request.json()) as HouseProfileRequestBody;
 
   if (!body.seller_lead_id) {

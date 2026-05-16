@@ -7,6 +7,7 @@ import {
   type BrokerHouseProfileMutationPayload,
   type BrokerLeadMutationPayload
 } from '@/features/brokeros/api/data';
+import { requireBrokerosAuth } from '@/lib/auth/require-brokeros-auth';
 import { NextResponse } from 'next/server';
 
 interface BrokerLeadRequestBody {
@@ -16,6 +17,9 @@ interface BrokerLeadRequestBody {
 }
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const authResult = await requireBrokerosAuth();
+  if (authResult.unauthorizedResponse) return authResult.unauthorizedResponse;
+
   const { id } = await params;
   const body = (await request.json()) as BrokerLeadRequestBody;
 
