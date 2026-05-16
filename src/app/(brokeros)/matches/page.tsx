@@ -34,9 +34,18 @@ export default async function MatchesPage() {
   return (
     <PageContainer pageTitle='Matches' pageHeaderAction={<MatchesQueueToolbar />}>
       <div className='bg-background rounded-none border-y border-border/80 shadow-xs'>
-        <div className='p-2.5'>
+        <div className='flex items-center justify-between gap-3 border-b px-3 py-2.5'>
+          <div>
+            <h2 className='text-sm font-semibold'>Match Cards</h2>
+            <p className='text-muted-foreground text-xs'>
+              Reviewable matches grouped by confidence.
+            </p>
+          </div>
+          <StatusPill appearance='score'>{visibleMatches.length} total</StatusPill>
+        </div>
+        <div className='p-4'>
           {visibleMatches.length > 0 ? (
-            <div className='grid grid-cols-1 justify-items-start gap-2 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4'>
+            <div className='grid grid-cols-1 justify-items-start gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4'>
               {visibleMatches.map((match) => {
                 const lead = match.buyerLead;
                 const listing = match.houseProfile;
@@ -56,7 +65,7 @@ export default async function MatchesPage() {
                 return (
                   <article
                     key={match.id}
-                    className='bg-card flex w-full max-w-[19.5rem] flex-col overflow-hidden rounded-lg border shadow-sm transition-all duration-150 hover:-translate-y-px hover:border-border/80 hover:shadow-md'
+                    className='bg-card flex w-full max-w-[21rem] flex-col overflow-hidden rounded-lg border shadow-sm transition-all duration-150 hover:-translate-y-px hover:border-border/80 hover:shadow-md'
                   >
                     <div className='border-b px-4 py-4'>
                       <div className='mb-3 flex items-start justify-between gap-3'>
