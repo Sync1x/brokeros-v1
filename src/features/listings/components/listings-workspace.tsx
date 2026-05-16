@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import PageContainer from '@/components/layout/page-container';
 import { Icons } from '@/components/icons';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { StatusPill } from '@/components/brokeros/status-pill';
 import {
   Dialog,
   DialogContent,
@@ -450,19 +451,11 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function getListingStatusTone(status: ListingStatus) {
-  switch (status) {
-    case 'Active':
-      return 'border-brokeros-success/20 bg-brokeros-success/10 text-brokeros-success';
-    case 'Private':
-      return 'border-slate-200 bg-slate-100 text-slate-700';
-    case 'Coming Soon':
-      return 'border-brokeros-warning/20 bg-brokeros-warning/10 text-brokeros-warning';
-    case 'Under Review':
-      return 'border-blue-200 bg-blue-50 text-blue-700';
-    default:
-      return 'border-border bg-muted text-muted-foreground';
-  }
+function listingStatusVariant(status: ListingStatus) {
+  if (status === 'Active') return 'active';
+  if (status === 'Coming Soon') return 'warning';
+  if (status === 'Under Review') return 'info';
+  return 'neutral';
 }
 
 function formatListingLocation(home: HomeProfile) {
@@ -504,9 +497,9 @@ function HomeDetailsDialog({
                       .join(', ')}
                   </DialogDescription>
                 </div>
-                <Badge variant='outline' className='font-mono text-[0.65rem] uppercase'>
+                <StatusPill variant={listingStatusVariant(home.listingStatus)} dot>
                   {home.listingStatus}
-                </Badge>
+                </StatusPill>
               </div>
             </DialogHeader>
             <ScrollArea className='max-h-[70vh] px-5 py-4'>
@@ -556,19 +549,13 @@ function HomeProfileCard({
     <button
       type='button'
       onClick={() => onSelect(home)}
-      className='group bg-card hover:bg-muted/20 flex min-h-[16rem] w-full max-w-[22.5rem] flex-col overflow-hidden rounded-xl border text-left shadow-sm transition-all duration-150 hover:-translate-y-px hover:border-border/80 hover:shadow-md'
+      className='group bg-card hover:bg-muted/20 flex min-h-[16rem] w-full max-w-[22.5rem] flex-col overflow-hidden rounded-lg border text-left shadow-sm transition-all duration-150 hover:-translate-y-px hover:border-border/80 hover:shadow-md'
     >
       <div className='border-b px-4 py-4'>
         <div className='mb-3 flex items-start justify-between gap-3'>
-          <Badge
-            variant='outline'
-            className={cn(
-              'rounded-full px-3 py-1 text-[0.65rem] font-semibold tracking-wide uppercase',
-              getListingStatusTone(home.listingStatus)
-            )}
-          >
+          <StatusPill variant={listingStatusVariant(home.listingStatus)} dot>
             {home.listingStatus}
-          </Badge>
+          </StatusPill>
           <span className='text-base font-bold tabular-nums text-foreground'>
             {home.listingPrice || '—'}
           </span>
@@ -728,7 +715,7 @@ export function ListingsWorkspace() {
       }
     >
       <div className='grid min-h-[calc(100vh-9rem)] gap-4 xl:grid-cols-[minmax(0,1fr)_18rem]'>
-        <main className='bg-background overflow-hidden rounded-xl border shadow-sm'>
+        <main className='bg-background overflow-hidden rounded-none border shadow-sm'>
           <div className='flex items-center justify-between gap-3 border-b px-4 py-3'>
             <div>
               <h2 className='text-sm font-semibold'>Home Profiles</h2>

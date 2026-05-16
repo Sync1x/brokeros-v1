@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
@@ -22,6 +21,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Icons } from '@/components/icons';
+import { StatusPill } from '@/components/brokeros/status-pill';
 import { LeadNameHoverCard, type LeadHoverProfile } from './lead-name-hover-card';
 import { cn } from '@/lib/utils';
 import { humanizeKey, humanizeList } from '@/lib/vocabulary/display';
@@ -341,13 +341,13 @@ function crmLeadHoverProfile(lead: CrmLead): LeadHoverProfile {
   };
 }
 
-function statusClass(status: string) {
-  if (status === 'Active') return 'border-green-500 bg-green-500 text-white';
-  if (status === 'Hot') return 'border-red-500 bg-red-500 text-white';
-  if (status === 'Prospect') return 'border-orange-500 bg-orange-500 text-white';
-  if (status === 'Stale') return 'border-yellow-400 bg-yellow-400 text-black';
-  if (status === 'Inactive') return 'border-muted-foreground/45 bg-muted text-muted-foreground';
-  return 'border-muted-foreground/40 bg-background text-foreground';
+function statusPillVariant(status: LeadStatus) {
+  if (status === 'Active') return 'active';
+  if (status === 'Hot') return 'hot';
+  if (status === 'Prospect') return 'neutral';
+  if (status === 'Stale') return 'warning';
+  if (status === 'Inactive') return 'neutral';
+  return 'neutral';
 }
 
 function filterAndSortLeads<T extends CrmLead>(leads: T[], sort: SortKey) {
@@ -878,25 +878,20 @@ function StatusBadge({
 }) {
   if (!onStatusChange) {
     return (
-      <Badge
-        variant='outline'
-        className={cn('font-mono text-[0.62rem] uppercase', statusClass(status))}
-      >
+      <StatusPill variant={statusPillVariant(status)} dot>
         {status}
-      </Badge>
+      </StatusPill>
     );
   }
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Badge
+        <StatusPill
           asChild
-          variant='outline'
-          className={cn(
-            'font-mono text-[0.62rem] uppercase hover:brightness-95 focus-visible:ring-ring/50',
-            statusClass(status)
-          )}
+          variant={statusPillVariant(status)}
+          dot
+          className='cursor-pointer'
         >
           <button
             type='button'
@@ -906,7 +901,7 @@ function StatusBadge({
             {status}
             <Icons.chevronDown className='size-3' />
           </button>
-        </Badge>
+        </StatusPill>
       </DropdownMenuTrigger>
       <DropdownMenuContent align='end' className='min-w-36'>
         <DropdownMenuRadioGroup

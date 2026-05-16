@@ -1,21 +1,17 @@
 import Link from 'next/link';
 import PageContainer from '@/components/layout/page-container';
-import { Badge } from '@/components/ui/badge';
+import { StatusPill } from '@/components/brokeros/status-pill';
 import { listBrokerMatches } from '@/features/brokeros/api/data';
 import { MatchesQueueToolbar } from '@/features/matches/components/matches-queue-toolbar';
 import { Button } from '@/components/ui/button';
 import { Icons } from '@/components/icons';
 import { MINIMUM_PERSISTED_MATCH_SCORE } from '@/lib/matching/scoring-constants';
-import { cn } from '@/lib/utils';
 
 function getMatchStatus(score: number) {
   if (score >= 90) return 'Strong Match';
-  return 'Review Match';
-}
-
-function getMatchStatusClass(score: number) {
-  if (score >= 90) return 'border-brokeros-success/20 bg-brokeros-success/10 text-brokeros-success';
-  return 'border-brokeros-warning/20 bg-brokeros-warning/10 text-brokeros-warning';
+  if (score >= 80) return 'Good Match';
+  if (score >= 70) return 'Possible Match';
+  return 'Weak Match';
 }
 
 function formatCardValue(value: string | number | null | undefined) {
@@ -52,30 +48,16 @@ export default async function MatchesPage() {
               return (
                 <article
                   key={match.id}
-                  className='bg-card flex w-full max-w-[22.5rem] flex-col overflow-hidden rounded-xl border shadow-sm transition-all duration-150 hover:-translate-y-px hover:border-border/80 hover:shadow-md'
+                  className='bg-card flex w-full max-w-[22.5rem] flex-col overflow-hidden rounded-lg border shadow-sm transition-all duration-150 hover:-translate-y-px hover:border-border/80 hover:shadow-md'
                 >
                   <div className='border-b px-4 py-4'>
                     <div className='mb-3 flex items-start justify-between gap-3'>
-                      <Badge
-                        variant='outline'
-                        className={cn(
-                          'rounded-full px-3 py-1 text-[0.65rem] font-semibold tracking-wide uppercase',
-                          getMatchStatusClass(match.score)
-                        )}
-                      >
+                      <StatusPill appearance='outline'>
                         {matchStatus}
-                      </Badge>
-                      <Badge
-                        variant='outline'
-                        className={cn(
-                          'rounded-full px-3 py-1 text-sm font-bold tabular-nums',
-                          match.score >= 90
-                            ? 'border-brokeros-success/20 bg-brokeros-success/10 text-brokeros-success'
-                            : 'border-brokeros-warning/20 bg-brokeros-warning/10 text-brokeros-warning'
-                        )}
-                      >
+                      </StatusPill>
+                      <StatusPill appearance='score'>
                         {match.score}%
-                      </Badge>
+                      </StatusPill>
                     </div>
 
                     <div className='space-y-1'>
@@ -141,7 +123,7 @@ export default async function MatchesPage() {
             })}
           </div>
         ) : (
-          <div className='border-border/60 bg-card rounded-lg border px-6 py-10 text-center'>
+          <div className='border-border/60 bg-card rounded-none border px-6 py-10 text-center'>
             <p className='text-sm font-medium text-foreground'>
               No reviewable matches yet. Add stronger buyer/listing criteria or refresh matches.
             </p>

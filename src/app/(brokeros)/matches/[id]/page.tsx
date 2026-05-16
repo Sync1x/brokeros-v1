@@ -1,5 +1,5 @@
 import PageContainer from '@/components/layout/page-container';
-import { Badge } from '@/components/ui/badge';
+import { StatusPill } from '@/components/brokeros/status-pill';
 import { getBrokerMatchById } from '@/features/brokeros/api/data';
 import { LeadNameHoverCard } from '@/features/leads/components/lead-name-hover-card';
 import { brokerLeadHoverProfile } from '@/features/leads/utils/lead-hover-profile';
@@ -31,9 +31,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
             </LeadNameHoverCard>
             <h2 className='mt-1 font-mono text-base font-semibold uppercase'>{listing.address}</h2>
           </div>
-          <Badge variant='outline' className='border-primary/50 font-mono text-primary'>
-            {match.score}% confidence
-          </Badge>
+          <StatusPill appearance='score'>{match.score}%</StatusPill>
         </div>
         <p className='text-muted-foreground mt-3 max-w-3xl text-xs leading-5'>{match.rationale}</p>
         <div className='mt-3 border-y py-2'>

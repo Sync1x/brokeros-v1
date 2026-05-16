@@ -1,6 +1,7 @@
 'use client';
 
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
+import { StatusPill } from '@/components/brokeros/status-pill';
 import { cn } from '@/lib/utils';
 import type { ReactNode } from 'react';
 
@@ -15,6 +16,15 @@ export type LeadHoverProfile = {
   }[];
   notes?: string[];
 };
+
+function leadStatusVariant(status: string) {
+  const normalized = status.trim().toLowerCase();
+  if (normalized === 'hot') return 'hot';
+  if (normalized === 'active') return 'active';
+  if (normalized === 'stale') return 'warning';
+  if (normalized === 'nurture') return 'info';
+  return 'neutral';
+}
 
 export function LeadNameHoverCard({
   profile,
@@ -46,9 +56,9 @@ export function LeadNameHoverCard({
             <div className='mt-1 flex items-start justify-between gap-3'>
               <h3 className='min-w-0 text-sm font-semibold break-words'>{profile.name}</h3>
               {profile.status && (
-                <span className='shrink-0 border px-1.5 py-0.5 font-mono text-[0.62rem] text-muted-foreground uppercase'>
+                <StatusPill variant={leadStatusVariant(profile.status)} dot>
                   {profile.status}
-                </span>
+                </StatusPill>
               )}
             </div>
             {profile.summary && (
