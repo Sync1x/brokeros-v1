@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import PageContainer from '@/components/layout/page-container';
 import { Icons } from '@/components/icons';
 import { Badge } from '@/components/ui/badge';
@@ -17,13 +17,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
-import { brokerLeads } from '@/constants/brokeros-mock-data';
 
 type ListingStatus = 'Private' | 'Coming Soon' | 'Active' | 'Under Review';
 
 interface HomeProfile {
   id: string;
   createdAt: string;
+  sellerLeadId: string;
   address: string;
   city: string;
   state: string;
@@ -52,49 +52,139 @@ interface HomeProfile {
   agentNotes: string;
 }
 
-const listingStatuses: ListingStatus[] = ['Private', 'Coming Soon', 'Active', 'Under Review'];
+interface SellerLeadOption {
+  id: string;
+  name: string;
+  detail: string;
+}
 
-const sellerLeadOptions = brokerLeads.map((lead) => ({
-  id: lead.id,
-  name: lead.name,
-  detail: `${lead.desiredArea} / ${lead.assignedAgent}`
-}));
+interface BrokerLeadApiData {
+  id: string;
+  name: string;
+  desiredArea?: string;
+  assignedAgent?: string;
+}
+
+interface BrokerListingApiData {
+  id: string;
+  address: string;
+  neighborhood: string;
+  price: string;
+  beds: number;
+  baths: number;
+  sqft: string;
+  status: string;
+  owner: string;
+  sellerLeadId: string;
+  sellerLead: BrokerLeadApiData | null;
+  createdAt: string | null;
+  features: string[];
+  raw: {
+    address: string | null;
+    town: string | null;
+    beds: number | string | null;
+    baths: number | string | null;
+    sqft: number | null;
+    property_type: string | null;
+    features: string[] | null;
+    list_price: number | null;
+    status: string | null;
+    created_at: string | null;
+  };
+}
+
+interface HouseProfilesResponse {
+  houseProfiles: BrokerListingApiData[];
+  sellerLeads: BrokerLeadApiData[];
+}
+
+const listingStatuses: ListingStatus[] = ['Private', 'Coming Soon', 'Active', 'Under Review'];
 
 function readField(formData: FormData, key: string) {
   return String(formData.get(key) ?? '').trim();
 }
 
-function makeHomeProfile(formData: FormData): HomeProfile {
+function parseNumber(value: string) {
+  const parsed = Number(value.replace(/[$,\s]/g, ''));
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function splitFeatureList(value: string) {
+  return value
+    .split(/[\n,]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function toListingStatus(value: string | null | undefined): ListingStatus {
+  if (value === 'Private' || value === 'Coming Soon' || value === 'Under Review') return value;
+  return 'Active';
+}
+
+function makeHouseProfilePayload(formData: FormData) {
   return {
-    id: `home-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
-    createdAt: new Date().toISOString(),
-    address: readField(formData, 'address'),
-    city: readField(formData, 'city'),
-    state: readField(formData, 'state'),
-    zip: readField(formData, 'zip'),
-    neighborhood: readField(formData, 'neighborhood'),
-    propertyType: readField(formData, 'propertyType'),
-    listingPrice: readField(formData, 'listingPrice'),
-    beds: readField(formData, 'beds'),
-    baths: readField(formData, 'baths'),
-    sqft: readField(formData, 'sqft'),
-    lotSize: readField(formData, 'lotSize'),
-    yearBuilt: readField(formData, 'yearBuilt'),
-    parking: readField(formData, 'parking'),
-    basement: readField(formData, 'basement'),
-    heating: readField(formData, 'heating'),
-    cooling: readField(formData, 'cooling'),
-    hoa: readField(formData, 'hoa'),
-    condition: readField(formData, 'condition'),
-    occupancyStatus: readField(formData, 'occupancyStatus'),
-    listingStatus: (readField(formData, 'listingStatus') || 'Active') as ListingStatus,
-    sellerLead: readField(formData, 'sellerLead').replace(/^@/, ''),
-    showingInstructions: readField(formData, 'showingInstructions'),
-    keyFeatures: readField(formData, 'keyFeatures'),
-    upgrades: readField(formData, 'upgrades'),
-    sellerDescription: readField(formData, 'sellerDescription'),
-    agentNotes: readField(formData, 'agentNotes')
+    seller_lead_id: readField(formData, 'sellerLeadId'),
+    address: readField(formData, 'address') || null,
+    town: readField(formData, 'city') || null,
+    beds: parseNumber(readField(formData, 'beds')),
+    baths: parseNumber(readField(formData, 'baths')),
+    sqft: parseNumber(readField(formData, 'sqft')),
+    property_type: readField(formData, 'propertyType') || null,
+    features: splitFeatureList(readField(formData, 'keyFeatures')),
+    list_price: parseNumber(readField(formData, 'listingPrice')),
+    status: readField(formData, 'listingStatus') || 'Active'
   };
+}
+
+function formatNumber(value: number | string | null | undefined) {
+  if (value == null) return '';
+  const parsed = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? String(parsed) : '';
+}
+
+function mapListingToHomeProfile(listing: BrokerListingApiData): HomeProfile {
+  const town = listing.raw.town ?? '';
+  const features = listing.features.length ? listing.features : (listing.raw.features ?? []);
+
+  return {
+    id: listing.id,
+    createdAt: listing.createdAt ?? listing.raw.created_at ?? new Date().toISOString(),
+    sellerLeadId: listing.sellerLeadId,
+    address: listing.raw.address ?? listing.address,
+    city: town === 'Not set' ? '' : town,
+    state: '',
+    zip: '',
+    neighborhood: '',
+    propertyType: listing.raw.property_type ?? '',
+    listingPrice: listing.price === 'Not set' ? '' : listing.price,
+    beds: formatNumber(listing.raw.beds ?? listing.beds),
+    baths: formatNumber(listing.raw.baths ?? listing.baths),
+    sqft: formatNumber(listing.raw.sqft),
+    lotSize: '',
+    yearBuilt: '',
+    parking: '',
+    basement: '',
+    heating: '',
+    cooling: '',
+    hoa: '',
+    condition: '',
+    occupancyStatus: '',
+    listingStatus: toListingStatus(listing.status ?? listing.raw.status),
+    sellerLead: listing.sellerLead?.name ?? listing.owner,
+    showingInstructions: '',
+    keyFeatures: features.join(', '),
+    upgrades: '',
+    sellerDescription: '',
+    agentNotes: ''
+  };
+}
+
+function mapSellerLeadOptions(leads: BrokerLeadApiData[]): SellerLeadOption[] {
+  return leads.map((lead) => ({
+    id: lead.id,
+    name: lead.name,
+    detail: `${lead.desiredArea ?? 'Seller lead'} / ${lead.assignedAgent ?? 'Unassigned'}`
+  }));
 }
 
 function Field({
@@ -135,29 +225,38 @@ function TextareaField({
   );
 }
 
-function SellerLeadField() {
+function SellerLeadField({ options }: { options: SellerLeadOption[] }) {
   const [value, setValue] = useState('');
+  const [selectedLeadId, setSelectedLeadId] = useState('');
 
   const query = value.includes('@') ? value.slice(value.lastIndexOf('@') + 1).trim() : '';
   const showSuggestions = value.includes('@');
-  const filteredLeads = sellerLeadOptions.filter((lead) =>
+  const filteredLeads = options.filter((lead) =>
     lead.name.toLowerCase().includes(query.toLowerCase())
   );
+  const selectedLead = options.find((lead) => lead.id === selectedLeadId);
+  const hiddenLeadId = selectedLead && value === `@${selectedLead.name}` ? selectedLead.id : '';
 
-  function selectLead(name: string) {
-    setValue(`@${name}`);
+  function selectLead(lead: SellerLeadOption) {
+    setValue(`@${lead.name}`);
+    setSelectedLeadId(lead.id);
   }
 
   return (
     <div className='relative space-y-2 md:col-span-2'>
       <Label htmlFor='sellerLead'>Add seller lead</Label>
+      <input type='hidden' name='sellerLeadId' value={hiddenLeadId} />
       <Input
         id='sellerLead'
         name='sellerLead'
         value={value}
-        onChange={(event) => setValue(event.target.value)}
+        onChange={(event) => {
+          setValue(event.target.value);
+          setSelectedLeadId('');
+        }}
         placeholder='Type @ to search lead names'
         autoComplete='off'
+        required
       />
       {showSuggestions && (
         <div className='bg-popover absolute z-30 mt-1 max-h-56 w-full overflow-y-auto rounded-md border shadow-md'>
@@ -166,7 +265,7 @@ function SellerLeadField() {
               <button
                 key={lead.id}
                 type='button'
-                onClick={() => selectLead(lead.name)}
+                onClick={() => selectLead(lead)}
                 className='hover:bg-accent focus:bg-accent flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm outline-hidden'
               >
                 <span className='font-medium'>{lead.name}</span>
@@ -185,18 +284,37 @@ function SellerLeadField() {
 function AddHomeProfileDialog({
   open,
   onOpenChange,
-  onAddHome
+  onAddHome,
+  sellerLeadOptions,
+  isSubmitting
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onAddHome: (home: HomeProfile) => void;
+  onAddHome: (formData: FormData) => Promise<void>;
+  sellerLeadOptions: SellerLeadOption[];
+  isSubmitting: boolean;
 }) {
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const home = makeHomeProfile(new FormData(event.currentTarget));
-    onAddHome(home);
-    event.currentTarget.reset();
-    onOpenChange(false);
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+
+    if (!readField(formData, 'sellerLeadId')) {
+      setSubmitError('Select a seller lead from the suggestions before submitting.');
+      return;
+    }
+
+    setSubmitError(null);
+
+    try {
+      await onAddHome(formData);
+      form.reset();
+      onOpenChange(false);
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : 'Unable to save home profile.');
+    }
   }
 
   return (
@@ -211,7 +329,7 @@ function AddHomeProfileDialog({
         <form onSubmit={handleSubmit} className='flex min-h-0 flex-1 flex-col'>
           <ScrollArea className='max-h-[68vh] px-5 py-4'>
             <div className='grid gap-4 md:grid-cols-2'>
-              <SellerLeadField />
+              <SellerLeadField key={open ? 'open' : 'closed'} options={sellerLeadOptions} />
               <Field label='Address' name='address' placeholder='123 Main Street' required />
               <Field label='Neighborhood' name='neighborhood' placeholder='West Village' />
               <Field label='City' name='city' placeholder='New York' required />
@@ -274,10 +392,15 @@ function AddHomeProfileDialog({
             </div>
           </ScrollArea>
           <DialogFooter className='border-t px-5 py-4'>
+            {submitError && (
+              <p className='text-destructive mr-auto text-sm font-medium'>{submitError}</p>
+            )}
             <Button variant='outline' type='button' onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type='submit'>Submit Home Profile</Button>
+            <Button type='submit' isLoading={isSubmitting}>
+              Submit Home Profile
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -451,8 +574,12 @@ function RecentHomesRail({
 
 export function ListingsWorkspace() {
   const [homes, setHomes] = useState<HomeProfile[]>([]);
+  const [sellerLeadOptions, setSellerLeadOptions] = useState<SellerLeadOption[]>([]);
   const [addOpen, setAddOpen] = useState(false);
   const [selectedHome, setSelectedHome] = useState<HomeProfile | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const sortedHomes = useMemo(
     () =>
@@ -460,8 +587,60 @@ export function ListingsWorkspace() {
     [homes]
   );
 
-  function addHome(home: HomeProfile) {
-    setHomes((current) => [home, ...current]);
+  const loadHouseProfiles = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch('/api/brokeros/house-profiles', {
+        cache: 'no-store'
+      });
+      const data = (await response.json()) as Partial<HouseProfilesResponse> & {
+        error?: string;
+      };
+
+      if (!response.ok) {
+        throw new Error(data.error ?? 'Unable to load house profiles.');
+      }
+
+      setHomes((data.houseProfiles ?? []).map(mapListingToHomeProfile));
+      setSellerLeadOptions(mapSellerLeadOptions(data.sellerLeads ?? []));
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : 'Unable to load house profiles.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadHouseProfiles();
+  }, [loadHouseProfiles]);
+
+  async function addHome(formData: FormData) {
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch('/api/brokeros/house-profiles', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(makeHouseProfilePayload(formData))
+      });
+      const data = (await response.json()) as {
+        houseProfile?: BrokerListingApiData;
+        error?: string;
+      };
+
+      if (!response.ok || !data.houseProfile) {
+        throw new Error(data.error ?? 'Unable to save home profile.');
+      }
+
+      const houseProfile = data.houseProfile;
+      setHomes((current) => [mapListingToHomeProfile(houseProfile), ...current]);
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -487,7 +666,28 @@ export function ListingsWorkspace() {
               {homes.length} total
             </Badge>
           </div>
-          {sortedHomes.length > 0 ? (
+          {isLoading ? (
+            <div className='flex min-h-80 flex-col items-center justify-center px-4 text-center'>
+              <div className='bg-muted mb-4 flex size-12 items-center justify-center rounded-md'>
+                <Icons.spinner className='text-muted-foreground size-6 animate-spin' />
+              </div>
+              <h2 className='text-base font-semibold'>Loading home profiles</h2>
+              <p className='text-muted-foreground mt-1 max-w-sm text-sm'>
+                Pulling active listings from Supabase.
+              </p>
+            </div>
+          ) : error ? (
+            <div className='flex min-h-80 flex-col items-center justify-center px-4 text-center'>
+              <div className='bg-muted mb-4 flex size-12 items-center justify-center rounded-md'>
+                <Icons.warning className='text-muted-foreground size-6' />
+              </div>
+              <h2 className='text-base font-semibold'>Listings unavailable</h2>
+              <p className='text-muted-foreground mt-1 max-w-sm text-sm'>{error}</p>
+              <Button className='mt-4' onClick={() => void loadHouseProfiles()}>
+                Retry
+              </Button>
+            </div>
+          ) : sortedHomes.length > 0 ? (
             <div className='divide-y'>
               {sortedHomes.map((home) => (
                 <HomeProfileCard key={home.id} home={home} onSelect={setSelectedHome} />
@@ -511,7 +711,13 @@ export function ListingsWorkspace() {
         </main>
         <RecentHomesRail homes={sortedHomes} onSelect={setSelectedHome} />
       </div>
-      <AddHomeProfileDialog open={addOpen} onOpenChange={setAddOpen} onAddHome={addHome} />
+      <AddHomeProfileDialog
+        open={addOpen}
+        onOpenChange={setAddOpen}
+        onAddHome={addHome}
+        sellerLeadOptions={sellerLeadOptions}
+        isSubmitting={isSubmitting}
+      />
       <HomeDetailsDialog home={selectedHome} onOpenChange={() => setSelectedHome(null)} />
     </PageContainer>
   );

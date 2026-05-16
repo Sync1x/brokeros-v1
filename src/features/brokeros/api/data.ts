@@ -23,13 +23,7 @@ export const BROKER_HOUSE_PROFILE_FIELDS =
 export const BROKER_MATCH_FIELDS =
   'id, buyer_lead_id, house_profile_id, score, score_breakdown_json, created_at' as const;
 
-type JsonValue =
-  | string
-  | number
-  | boolean
-  | null
-  | JsonValue[]
-  | { [key: string]: JsonValue };
+type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 
 export interface BrokerLeadRow {
   id: string;
@@ -487,6 +481,43 @@ export async function getBrokerHouseProfileById(
   return mapBrokerListing(row, sellerLeads.get(row.seller_lead_id) ?? null);
 }
 
+export async function createBrokerHouseProfile(
+  payload: BrokerHouseProfileMutationPayload,
+  client = createServerSupabaseAdmin()
+): Promise<BrokerListingData> {
+  const { data, error } = await client
+    .from('house_profiles')
+    .insert(payload)
+    .select(BROKER_HOUSE_PROFILE_FIELDS)
+    .single();
+
+  assertNoSupabaseError(error, 'Failed to create house_profile');
+
+  const row = data as BrokerHouseProfileRow;
+  const sellerLeads = await fetchLeadsByIds(client, [row.seller_lead_id]);
+  return mapBrokerListing(row, sellerLeads.get(row.seller_lead_id) ?? null);
+}
+
+export async function updateBrokerHouseProfile(
+  id: string,
+  payload: Partial<BrokerHouseProfileMutationPayload>,
+  client = createServerSupabaseAdmin()
+): Promise<BrokerListingData | null> {
+  const { data, error } = await client
+    .from('house_profiles')
+    .update(payload)
+    .eq('id', id)
+    .select(BROKER_HOUSE_PROFILE_FIELDS)
+    .maybeSingle();
+
+  assertNoSupabaseError(error, `Failed to update house_profile ${id}`);
+  if (!data) return null;
+
+  const row = data as BrokerHouseProfileRow;
+  const sellerLeads = await fetchLeadsByIds(client, [row.seller_lead_id]);
+  return mapBrokerListing(row, sellerLeads.get(row.seller_lead_id) ?? null);
+}
+
 export async function listBrokerMatches(
   client = createServerSupabaseAdmin()
 ): Promise<BrokerMatchData[]> {
@@ -601,7 +632,10 @@ export async function upsertBrokerHouseProfileForSeller(
     .limit(1)
     .maybeSingle();
 
-  assertNoSupabaseError(existingError, `Failed to load house_profile for seller ${payload.seller_lead_id}`);
+  assertNoSupabaseError(
+    existingError,
+    `Failed to load house_profile for seller ${payload.seller_lead_id}`
+  );
 
   const query = existing?.id
     ? client
@@ -613,7 +647,10 @@ export async function upsertBrokerHouseProfileForSeller(
     : client.from('house_profiles').insert(payload).select(BROKER_HOUSE_PROFILE_FIELDS).single();
 
   const { data, error } = await query;
-  assertNoSupabaseError(error, `Failed to upsert house_profile for seller ${payload.seller_lead_id}`);
+  assertNoSupabaseError(
+    error,
+    `Failed to upsert house_profile for seller ${payload.seller_lead_id}`
+  );
 
   const row = data as BrokerHouseProfileRow;
   const sellerLeads = await fetchLeadsByIds(client, [row.seller_lead_id]);
