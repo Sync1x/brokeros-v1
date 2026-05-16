@@ -268,7 +268,7 @@ export function CommandCenterWorkbench({ actions, pace, sideSlot }: CommandCente
 
   return (
     <div className='grid w-full min-h-0 gap-4 lg:h-[calc(100dvh-4.75rem)] lg:grid-cols-[minmax(0,1fr)_340px] lg:overflow-hidden'>
-      <div className='grid min-w-0 gap-4 lg:min-h-0 lg:grid-rows-[minmax(0,1fr)_auto] lg:overflow-hidden'>
+      <div className='grid min-w-0 gap-4 lg:min-h-0 lg:grid-rows-[minmax(0,1fr)_auto] lg:overflow-hidden lg:pt-11'>
         <section className='flex min-h-0 flex-col overflow-hidden rounded-xl border bg-background shadow-xs'>
           <div className='flex items-center justify-between gap-3 border-b bg-muted/20 px-3 py-2.5'>
             <div className='min-w-0'>
