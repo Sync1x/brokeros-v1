@@ -45,6 +45,26 @@ function softVariantClasses(variant: StatusPillVariant) {
   }
 }
 
+function outlineVariantClasses(variant: StatusPillVariant) {
+  switch (variant) {
+    case 'danger':
+    case 'hot':
+      return 'border-rose-500/70 bg-rose-50 text-rose-700 dark:border-rose-400/55 dark:bg-rose-500/10 dark:text-rose-200';
+    case 'warning':
+    case 'warm':
+      return 'border-amber-500/70 bg-amber-50 text-amber-700 dark:border-amber-400/55 dark:bg-amber-500/10 dark:text-amber-200';
+    case 'info':
+    case 'cold':
+      return 'border-sky-500/70 bg-sky-50 text-sky-700 dark:border-sky-400/55 dark:bg-sky-500/10 dark:text-sky-200';
+    case 'success':
+    case 'active':
+      return 'border-emerald-500/70 bg-emerald-50 text-emerald-700 dark:border-emerald-400/55 dark:bg-emerald-500/10 dark:text-emerald-200';
+    case 'neutral':
+    default:
+      return 'border-slate-500/70 bg-background/95 text-slate-700 dark:border-slate-400/55 dark:text-slate-200';
+  }
+}
+
 function dotClasses(variant: StatusPillVariant) {
   switch (variant) {
     case 'danger':
@@ -68,7 +88,7 @@ function dotClasses(variant: StatusPillVariant) {
 function appearanceClasses(appearance: StatusPillAppearance) {
   switch (appearance) {
     case 'outline':
-      return 'rounded-full border border-foreground/80 bg-background/90 px-2.5 py-1 text-[0.65rem] font-medium uppercase tracking-[0.14em] text-foreground';
+      return 'rounded-full border px-2.5 py-1 text-[0.65rem] font-medium uppercase tracking-[0.14em]';
     case 'score':
       return 'rounded-full border border-foreground/80 bg-background/95 px-2.5 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.16em] text-foreground';
     case 'soft':
@@ -97,7 +117,7 @@ export function StatusPill({
         className={cn(
           'inline-flex w-fit shrink-0 items-center justify-center whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 [&>svg]:pointer-events-none [&>svg]:size-3',
           appearanceClasses(appearance),
-          isSoft ? softVariantClasses(variant) : null,
+          isSoft ? softVariantClasses(variant) : appearance === 'outline' ? outlineVariantClasses(variant) : null,
           className
         )}
         {...props}
@@ -110,14 +130,14 @@ export function StatusPill({
   return (
     <Comp
       data-slot='status-pill'
-      className={cn(
-        'inline-flex w-fit shrink-0 items-center justify-center whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 [&>svg]:pointer-events-none [&>svg]:size-3',
-        isSoft ? 'gap-1.5' : 'gap-1',
-        appearanceClasses(appearance),
-        isSoft ? softVariantClasses(variant) : null,
-        className
-      )}
-      {...props}
+        className={cn(
+          'inline-flex w-fit shrink-0 items-center justify-center whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 [&>svg]:pointer-events-none [&>svg]:size-3',
+          isSoft ? 'gap-1.5' : 'gap-1',
+          appearanceClasses(appearance),
+          isSoft ? softVariantClasses(variant) : appearance === 'outline' ? outlineVariantClasses(variant) : null,
+          className
+        )}
+        {...props}
     >
       {Icon ? <Icon aria-hidden='true' className='shrink-0' /> : null}
       {!Icon && dot ? <span aria-hidden='true' className={cn('size-1.5 rounded-full', dotClasses(variant))} /> : null}

@@ -18,6 +18,13 @@ function matchQualityLabel(score: number) {
   return 'Weak Match';
 }
 
+function matchQualityVariant(score: number) {
+  if (score >= 90) return 'success';
+  if (score >= 80) return 'info';
+  if (score >= 70) return 'warning';
+  return 'danger';
+}
+
 export default async function LeadDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const [lead, allMatches] = await Promise.all([getBrokerLeadById(id), listBrokerMatches()]);
@@ -84,7 +91,12 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
                 >
                   <span className='text-xs'>{match.rationale}</span>
                   <div className='flex items-center gap-2'>
-                    <StatusPill appearance='outline'>{matchQualityLabel(match.score)}</StatusPill>
+                    <StatusPill
+                      appearance='outline'
+                      variant={matchQualityVariant(match.score)}
+                    >
+                      {matchQualityLabel(match.score)}
+                    </StatusPill>
                     <StatusPill appearance='score'>{match.score}%</StatusPill>
                   </div>
                 </div>

@@ -14,6 +14,13 @@ function getMatchStatus(score: number) {
   return 'Weak Match';
 }
 
+function getMatchStatusVariant(score: number) {
+  if (score >= 90) return 'success';
+  if (score >= 80) return 'info';
+  if (score >= 70) return 'warning';
+  return 'danger';
+}
+
 function formatCardValue(value: string | number | null | undefined) {
   if (value == null) return '';
   const text = String(value).trim();
@@ -26,14 +33,15 @@ export default async function MatchesPage() {
 
   return (
     <PageContainer pageTitle='Matches' pageHeaderAction={<MatchesQueueToolbar />}>
-      <div className='space-y-3'>
-        {visibleMatches.length > 0 ? (
-          <div className='grid grid-cols-1 gap-4 justify-items-start sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4'>
-            {visibleMatches.map((match) => {
-              const lead = match.buyerLead;
-              const listing = match.houseProfile;
-              const matchStatus = getMatchStatus(match.score);
-              const location = listing ? formatCardValue(listing.neighborhood) : '';
+      <div className='bg-background border-y rounded-none'>
+        <div className='p-3'>
+          {visibleMatches.length > 0 ? (
+            <div className='grid grid-cols-1 gap-3 justify-items-start sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4'>
+              {visibleMatches.map((match) => {
+                const lead = match.buyerLead;
+                const listing = match.houseProfile;
+                const matchStatus = getMatchStatus(match.score);
+                const location = listing ? formatCardValue(listing.neighborhood) : '';
               const price = listing ? formatCardValue(listing.price) : '';
               const profileBits = listing
                 ? [
@@ -48,11 +56,11 @@ export default async function MatchesPage() {
               return (
                 <article
                   key={match.id}
-                  className='bg-card flex w-full max-w-[22.5rem] flex-col overflow-hidden rounded-lg border shadow-sm transition-all duration-150 hover:-translate-y-px hover:border-border/80 hover:shadow-md'
+                  className='bg-card flex w-full max-w-[20.5rem] flex-col overflow-hidden rounded-lg border shadow-sm transition-all duration-150 hover:-translate-y-px hover:border-border/80 hover:shadow-md'
                 >
                   <div className='border-b px-4 py-4'>
                     <div className='mb-3 flex items-start justify-between gap-3'>
-                      <StatusPill appearance='outline'>
+                      <StatusPill appearance='outline' variant={getMatchStatusVariant(match.score)}>
                         {matchStatus}
                       </StatusPill>
                       <StatusPill appearance='score'>
@@ -121,14 +129,15 @@ export default async function MatchesPage() {
                 </article>
               );
             })}
-          </div>
-        ) : (
-          <div className='border-border/60 bg-card rounded-none border px-6 py-10 text-center'>
-            <p className='text-sm font-medium text-foreground'>
-              No reviewable matches yet. Add stronger buyer/listing criteria or refresh matches.
-            </p>
-          </div>
-        )}
+            </div>
+          ) : (
+            <div className='border-border/60 bg-card rounded-none border px-6 py-10 text-center'>
+              <p className='text-sm font-medium text-foreground'>
+                No reviewable matches yet. Add stronger buyer/listing criteria or refresh matches.
+              </p>
+            </div>
+          )}
+        </div>
       </div>
     </PageContainer>
   );

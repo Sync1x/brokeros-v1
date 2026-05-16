@@ -19,6 +19,13 @@ function matchQualityLabel(score: number) {
   return 'Weak Match';
 }
 
+function matchQualityVariant(score: number) {
+  if (score >= 90) return 'success';
+  if (score >= 80) return 'info';
+  if (score >= 70) return 'warning';
+  return 'danger';
+}
+
 export default async function ListingDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const [listing, allMatches] = await Promise.all([
@@ -73,7 +80,12 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
                 <div className='flex items-center justify-between gap-3'>
                   <p className='text-xs'>{match.rationale}</p>
                   <div className='flex items-center gap-2'>
-                    <StatusPill appearance='outline'>{matchQualityLabel(match.score)}</StatusPill>
+                    <StatusPill
+                      appearance='outline'
+                      variant={matchQualityVariant(match.score)}
+                    >
+                      {matchQualityLabel(match.score)}
+                    </StatusPill>
                     <StatusPill appearance='score'>{match.score}%</StatusPill>
                   </div>
                 </div>
