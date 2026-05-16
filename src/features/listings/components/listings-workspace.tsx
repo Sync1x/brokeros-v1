@@ -17,6 +17,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
+import { cn } from '@/lib/utils';
 
 type ListingStatus = 'Private' | 'Coming Soon' | 'Active' | 'Under Review';
 
@@ -294,6 +295,7 @@ function AddHomeProfileDialog({
   sellerLeadOptions: SellerLeadOption[];
   isSubmitting: boolean;
 }) {
+  const [primeMlsUrl, setPrimeMlsUrl] = useState('');
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -319,7 +321,7 @@ function AddHomeProfileDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className='max-h-[92vh] gap-0 overflow-hidden p-0 sm:max-w-3xl'>
+      <DialogContent className='flex max-h-[92vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl'>
         <DialogHeader className='border-b px-5 py-4'>
           <DialogTitle>Add Home Profile</DialogTitle>
           <DialogDescription>
@@ -327,7 +329,25 @@ function AddHomeProfileDialog({
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className='flex min-h-0 flex-1 flex-col'>
-          <ScrollArea className='max-h-[68vh] px-5 py-4'>
+          <div className='border-b px-5 py-4'>
+            <div className='flex flex-col gap-3 lg:flex-row lg:items-end'>
+              <div className='min-w-0 flex-1 space-y-2'>
+                <Label htmlFor='primeMlsUrl'>Paste PrimeMLS URL Here:</Label>
+                <Input
+                  id='primeMlsUrl'
+                  name='primeMlsUrl'
+                  value={primeMlsUrl}
+                  onChange={(event) => setPrimeMlsUrl(event.target.value)}
+                  placeholder='https://...'
+                  autoComplete='off'
+                />
+              </div>
+              <Button type='button' variant='outline' className='shrink-0'>
+                Confirm
+              </Button>
+            </div>
+          </div>
+          <ScrollArea className='min-h-0 flex-1 px-5 py-4'>
             <div className='grid gap-4 md:grid-cols-2'>
               <SellerLeadField key={open ? 'open' : 'closed'} options={sellerLeadOptions} />
               <Field label='Address' name='address' placeholder='123 Main Street' required />
@@ -487,50 +507,82 @@ function HomeProfileCard({
   home: HomeProfile;
   onSelect: (home: HomeProfile) => void;
 }) {
+  const locationParts = [home.neighborhood, home.city, home.state].filter(Boolean);
+  const homeStats = [
+    { label: 'Price', value: home.listingPrice || '—', mono: true },
+    { label: 'Beds', value: home.beds || '—' },
+    { label: 'Baths', value: home.baths || '—' },
+    { label: 'Sqft', value: home.sqft ? `${home.sqft}` : '—', mono: true }
+  ];
+  const highlights = [home.propertyType, home.keyFeatures, home.upgrades]
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, 3);
+
   return (
     <button
       type='button'
       onClick={() => onSelect(home)}
-      className='group bg-background hover:bg-muted/35 flex w-full flex-col gap-3 border-b px-4 py-4 text-left transition-colors'
+      className='group bg-card hover:bg-muted/35 flex min-h-[15rem] w-full flex-col justify-between rounded-lg border p-5 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md'
     >
-      <div className='flex flex-wrap items-start justify-between gap-3'>
-        <div className='min-w-0'>
-          <h3 className='group-hover:text-primary truncate text-sm font-semibold'>
-            {home.address}
-          </h3>
-          <p className='text-muted-foreground mt-1 text-xs'>
-            {[home.neighborhood, home.city, home.state].filter(Boolean).join(', ')}
-          </p>
+      <div className='space-y-4'>
+        <div className='flex items-start justify-between gap-4'>
+          <div className='min-w-0 space-y-1'>
+            <h3 className='group-hover:text-primary truncate text-base font-semibold'>
+              {home.address}
+            </h3>
+            <p className='text-muted-foreground truncate text-xs'>
+              {locationParts.length > 0 ? locationParts.join(', ') : 'No location set'}
+            </p>
+          </div>
+          <Badge variant='outline' className='shrink-0 font-mono text-[0.62rem] uppercase'>
+            {home.listingStatus}
+          </Badge>
         </div>
-        <Badge variant='outline' className='font-mono text-[0.62rem] uppercase'>
-          {home.listingStatus}
-        </Badge>
+
+        <div className='grid grid-cols-2 gap-3 sm:grid-cols-4'>
+          {homeStats.map((stat) => (
+            <div key={stat.label} className='rounded-md border bg-background/60 px-3 py-2'>
+              <p className='text-muted-foreground text-[0.65rem] uppercase tracking-wide'>
+                {stat.label}
+              </p>
+              <p className={cn('mt-1 text-xs font-medium', stat.mono && 'font-mono')}>
+                {stat.value}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        {highlights.length > 0 ? (
+          <div className='flex flex-wrap gap-2'>
+            {highlights.map((item) => (
+              <span
+                key={item}
+                className='bg-muted/70 text-muted-foreground rounded-md px-2 py-1 text-[0.68rem]'
+              >
+                {item}
+              </span>
+            ))}
+          </div>
+        ) : null}
+
+        <div className='grid gap-2 border-t pt-4 text-xs sm:grid-cols-2'>
+          <div>
+            <p className='text-muted-foreground text-[0.65rem] uppercase tracking-wide'>
+              Seller lead
+            </p>
+            <p className='truncate font-medium'>{home.sellerLead || '—'}</p>
+          </div>
+          <div>
+            <p className='text-muted-foreground text-[0.65rem] uppercase tracking-wide'>
+              Agent notes
+            </p>
+            <p className='text-muted-foreground line-clamp-2'>
+              {home.agentNotes || home.sellerDescription || 'No notes yet'}
+            </p>
+          </div>
+        </div>
       </div>
-      <div className='grid gap-3 text-xs sm:grid-cols-4'>
-        <div>
-          <p className='text-muted-foreground'>Price</p>
-          <p className='font-mono'>{home.listingPrice || '—'}</p>
-        </div>
-        <div>
-          <p className='text-muted-foreground'>Profile</p>
-          <p>
-            {home.beds || '—'} bd / {home.baths || '—'} ba
-          </p>
-        </div>
-        <div>
-          <p className='text-muted-foreground'>Size</p>
-          <p>{home.sqft ? `${home.sqft} sqft` : '—'}</p>
-        </div>
-        <div>
-          <p className='text-muted-foreground'>Seller lead</p>
-          <p className='truncate'>{home.sellerLead || '—'}</p>
-        </div>
-      </div>
-      {(home.keyFeatures || home.agentNotes) && (
-        <p className='text-muted-foreground line-clamp-2 text-xs'>
-          {home.keyFeatures || home.agentNotes}
-        </p>
-      )}
     </button>
   );
 }
@@ -688,7 +740,7 @@ export function ListingsWorkspace() {
               </Button>
             </div>
           ) : sortedHomes.length > 0 ? (
-            <div className='divide-y'>
+            <div className='grid gap-4 p-4'>
               {sortedHomes.map((home) => (
                 <HomeProfileCard key={home.id} home={home} onSelect={setSelectedHome} />
               ))}

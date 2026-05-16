@@ -14,6 +14,9 @@ export async function POST() {
     return NextResponse.json({
       buyersConsidered: result.buyersConsidered,
       housesConsidered: result.housesConsidered,
+      pairsScored: result.pairsScored,
+      matchesWritten: result.matchesWritten,
+      rejectedPairs: result.rejectedPairs,
       upsertRows: result.upsertRows
     });
   } catch (error) {

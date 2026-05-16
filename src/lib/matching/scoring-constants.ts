@@ -10,6 +10,9 @@ export const MATCH_WEIGHTS = {
   nice_to_haves_cap: 5
 } as const;
 
+/** Minimum score that qualifies a buyer/house pair for persistence as a match. */
+export const MINIMUM_PERSISTED_MATCH_SCORE = 70;
+
 /** Stretch above buyer stated max before budget is treated as failed. */
 export const BUDGET_STRETCH_RATIO = 1.1;
 

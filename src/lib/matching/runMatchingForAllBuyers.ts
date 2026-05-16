@@ -1,3 +1,4 @@
+import { MINIMUM_PERSISTED_MATCH_SCORE } from './scoring-constants';
 import { scoreBuyerToHouse } from './scoreBuyerToHouse';
 import type { BuyerProfileRow, HouseProfileRow, TownAdjacencyRow } from './types';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -5,6 +6,9 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 export interface RunMatchingResult {
   buyersConsidered: number;
   housesConsidered: number;
+  pairsScored: number;
+  matchesWritten: number;
+  rejectedPairs: number;
   upsertRows: number;
 }
 
@@ -42,11 +46,11 @@ interface HouseProfileSelectRow {
 }
 
 function arrayFallback(primary?: string[] | null, fallback?: string[] | null): string[] {
-  return primary?.length ? primary : fallback ?? [];
+  return primary?.length ? primary : (fallback ?? []);
 }
 
 function stringFallback(primary?: string | null, fallback?: string | null): string | null {
-  return primary?.trim() ? primary : fallback ?? null;
+  return primary?.trim() ? primary : (fallback ?? null);
 }
 
 function numberOrNull(value: number | string | null): number | null {
@@ -57,13 +61,18 @@ function numberOrNull(value: number | string | null): number | null {
 
 /**
  * Loads buyer leads + profiles, all house profiles, and town adjacency; scores every pair;
- * upserts into public.matches on (buyer_lead_id, house_profile_id).
+ * upserts qualifying rows into public.matches on (buyer_lead_id, house_profile_id).
  */
-export async function runMatchingForAllBuyers(
-  client?: SupabaseClient
-): Promise<RunMatchingResult> {
+export async function runMatchingForAllBuyers(client?: SupabaseClient): Promise<RunMatchingResult> {
   const supabase =
     client ?? (await import('@/lib/supabase/script-client')).createScriptSupabaseAdmin();
+
+  const { error: deleteWeakErr } = await supabase
+    .from('matches')
+    .delete()
+    .lt('score', MINIMUM_PERSISTED_MATCH_SCORE);
+
+  if (deleteWeakErr) throw new Error(`Failed to delete weak matches: ${deleteWeakErr.message}`);
 
   const { data: buyerLeads, error: buyerLeadErr } = await supabase
     .from('leads')
@@ -74,7 +83,14 @@ export async function runMatchingForAllBuyers(
 
   const buyerIds = (buyerLeads ?? []).map((r) => r.id as string);
   if (!buyerIds.length) {
-    return { buyersConsidered: 0, housesConsidered: 0, upsertRows: 0 };
+    return {
+      buyersConsidered: 0,
+      housesConsidered: 0,
+      pairsScored: 0,
+      matchesWritten: 0,
+      rejectedPairs: 0,
+      upsertRows: 0
+    };
   }
 
   const { data: profiles, error: profErr } = await supabase
@@ -137,6 +153,8 @@ export async function runMatchingForAllBuyers(
     score: number;
     score_breakdown_json: Record<string, unknown>;
   }[] = [];
+  let pairsScored = 0;
+  let rejectedPairs = 0;
 
   for (const leadId of buyerIds) {
     const buyerProfile = profileByLead.get(leadId);
@@ -144,6 +162,13 @@ export async function runMatchingForAllBuyers(
 
     for (const house of houseList) {
       const { score, breakdown } = scoreBuyerToHouse(buyerProfile, house, townAdjacency);
+      pairsScored += 1;
+
+      if (score < MINIMUM_PERSISTED_MATCH_SCORE) {
+        rejectedPairs += 1;
+        continue;
+      }
+
       payload.push({
         buyer_lead_id: leadId,
         house_profile_id: house.id,
@@ -165,6 +190,9 @@ export async function runMatchingForAllBuyers(
   return {
     buyersConsidered: buyerIds.filter((id) => profileByLead.has(id)).length,
     housesConsidered: houseList.length,
+    pairsScored,
+    matchesWritten: payload.length,
+    rejectedPairs,
     upsertRows: payload.length
   };
 }

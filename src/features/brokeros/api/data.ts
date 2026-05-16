@@ -237,8 +237,7 @@ function mapListingStatus(status: string | null | undefined): ListingStatus {
 
 function mapMatchStatus(score: number): Match['status'] {
   if (score >= 90) return 'Ready';
-  if (score >= 80) return 'Review';
-  return 'Sent';
+  return 'Review';
 }
 
 function scoreBreakdownObject(value: JsonValue | null): Record<string, unknown> {

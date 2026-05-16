@@ -10,6 +10,9 @@ import { Button } from '@/components/ui/button';
 interface RefreshMatchesResponse {
   buyersConsidered: number;
   housesConsidered: number;
+  pairsScored: number;
+  matchesWritten: number;
+  rejectedPairs: number;
   upsertRows: number;
 }
 
@@ -30,7 +33,9 @@ export function RefreshMatchesButton() {
       }
 
       const result = (await response.json()) as RefreshMatchesResponse;
-      toast.success(`Refreshed ${result.upsertRows} match rows`);
+      toast.success(
+        `Refreshed ${result.matchesWritten} matches. Rejected ${result.rejectedPairs} weak pairings.`
+      );
       router.refresh();
     } catch {
       toast.error('Unable to refresh matches');
