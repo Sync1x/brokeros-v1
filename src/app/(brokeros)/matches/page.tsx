@@ -2,27 +2,26 @@ import Link from 'next/link';
 import PageContainer from '@/components/layout/page-container';
 import { Badge } from '@/components/ui/badge';
 import { listBrokerMatches } from '@/features/brokeros/api/data';
-import { LeadNameHoverCard } from '@/features/leads/components/lead-name-hover-card';
-import { brokerLeadHoverProfile } from '@/features/leads/utils/lead-hover-profile';
 import { MatchesQueueToolbar } from '@/features/matches/components/matches-queue-toolbar';
 import { Button } from '@/components/ui/button';
 import { Icons } from '@/components/icons';
 import { MINIMUM_PERSISTED_MATCH_SCORE } from '@/lib/matching/scoring-constants';
 import { cn } from '@/lib/utils';
 
-function scoreClass(score: number) {
-  if (score >= 90) return 'border-brokeros-success/20 bg-brokeros-success/10 text-brokeros-success';
-  return 'border-brokeros-warning/20 bg-brokeros-warning/10 text-brokeros-warning';
-}
-
 function getMatchStatus(score: number) {
   if (score >= 90) return 'Strong Match';
-  return 'Review';
+  return 'Review Match';
 }
 
 function getMatchStatusClass(score: number) {
   if (score >= 90) return 'border-brokeros-success/20 bg-brokeros-success/10 text-brokeros-success';
   return 'border-brokeros-warning/20 bg-brokeros-warning/10 text-brokeros-warning';
+}
+
+function formatCardValue(value: string | number | null | undefined) {
+  if (value == null) return '';
+  const text = String(value).trim();
+  return text && text !== 'Not set' ? text : '';
 }
 
 export default async function MatchesPage() {
@@ -33,112 +32,114 @@ export default async function MatchesPage() {
     <PageContainer pageTitle='Matches' pageHeaderAction={<MatchesQueueToolbar />}>
       <div className='space-y-3'>
         {visibleMatches.length > 0 ? (
-          <>
-            <div className='relative hidden items-center gap-4 px-4 pb-1 text-[0.62rem] font-medium tracking-[0.16em] text-muted-foreground uppercase md:grid md:grid-cols-[1.2fr_1.6fr_auto_0.9fr_minmax(12rem,1.4fr)_auto] md:px-5'>
-              <div>Buyer</div>
-              <div>Listing</div>
-              <div>Score</div>
-              <div>Match Status</div>
-              <div>Next Action</div>
-              <div className='text-right'>Open</div>
-            </div>
+          <div className='grid grid-cols-1 gap-4 justify-items-start sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4'>
+            {visibleMatches.map((match) => {
+              const lead = match.buyerLead;
+              const listing = match.houseProfile;
+              const matchStatus = getMatchStatus(match.score);
+              const location = listing ? formatCardValue(listing.neighborhood) : '';
+              const price = listing ? formatCardValue(listing.price) : '';
+              const profileBits = listing
+                ? [
+                    listing.beds ? `${listing.beds} bd` : '',
+                    listing.baths ? `${listing.baths} ba` : '',
+                    listing.sqft ? `${listing.sqft} sqft` : ''
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')
+                : '';
 
-            <div className='space-y-3'>
-              {visibleMatches.map((match) => {
-                const lead = match.buyerLead;
-                const listing = match.houseProfile;
-                const matchStatus = getMatchStatus(match.score);
-
-                return (
-                  <article
-                    key={match.id}
-                    className='relative overflow-hidden rounded-lg border bg-card px-4 py-4 shadow-sm transition-all duration-150 hover:-translate-y-px hover:border-border/80 hover:shadow-md md:px-5'
-                  >
-                    <div className='grid gap-4 md:grid-cols-[1.2fr_1.6fr_auto_0.9fr_minmax(12rem,1.4fr)_auto] md:items-center'>
-                      <div className='min-w-0'>
-                        <div className='mb-1 text-[0.62rem] font-medium tracking-[0.16em] text-muted-foreground uppercase md:hidden'>
-                          Buyer
-                        </div>
-                        {lead ? (
-                          <LeadNameHoverCard profile={brokerLeadHoverProfile(lead)}>
-                            <Link
-                              href={`/leads/${lead.id}`}
-                              className='font-medium text-foreground hover:text-primary'
-                            >
-                              {lead.name}
-                            </Link>
-                          </LeadNameHoverCard>
-                        ) : (
-                          <span className='text-muted-foreground'>Missing lead</span>
+              return (
+                <article
+                  key={match.id}
+                  className='bg-card flex w-full max-w-[22.5rem] flex-col overflow-hidden rounded-xl border shadow-sm transition-all duration-150 hover:-translate-y-px hover:border-border/80 hover:shadow-md'
+                >
+                  <div className='border-b px-4 py-4'>
+                    <div className='mb-3 flex items-start justify-between gap-3'>
+                      <Badge
+                        variant='outline'
+                        className={cn(
+                          'rounded-full px-3 py-1 text-[0.65rem] font-semibold tracking-wide uppercase',
+                          getMatchStatusClass(match.score)
                         )}
-                      </div>
-
-                      <div className='min-w-0'>
-                        <div className='mb-1 text-[0.62rem] font-medium tracking-[0.16em] text-muted-foreground uppercase md:hidden'>
-                          Listing
-                        </div>
-                        {listing ? (
-                          <Link
-                            href={`/listings/${listing.id}`}
-                            className='font-medium text-foreground hover:text-primary'
-                          >
-                            {listing.address}
-                          </Link>
-                        ) : (
-                          <span className='text-muted-foreground'>Missing listing</span>
+                      >
+                        {matchStatus}
+                      </Badge>
+                      <Badge
+                        variant='outline'
+                        className={cn(
+                          'rounded-full px-3 py-1 text-sm font-bold tabular-nums',
+                          match.score >= 90
+                            ? 'border-brokeros-success/20 bg-brokeros-success/10 text-brokeros-success'
+                            : 'border-brokeros-warning/20 bg-brokeros-warning/10 text-brokeros-warning'
                         )}
-                      </div>
-
-                      <div>
-                        <div className='mb-1 text-[0.62rem] font-medium tracking-[0.16em] text-muted-foreground uppercase md:hidden'>
-                          Score
-                        </div>
-                        <Badge
-                          variant='outline'
-                          className={cn('font-mono text-[0.7rem]', scoreClass(match.score))}
-                        >
-                          {match.score}%
-                        </Badge>
-                      </div>
-
-                      <div className='md:pt-0.5'>
-                        <div className='mb-1 text-[0.62rem] font-medium tracking-[0.16em] text-muted-foreground uppercase md:hidden'>
-                          Match Status
-                        </div>
-                        <Badge
-                          variant='outline'
-                          className={cn('w-fit font-medium', getMatchStatusClass(match.score))}
-                        >
-                          {matchStatus}
-                        </Badge>
-                      </div>
-
-                      <div className='min-w-0'>
-                        <div className='mb-1 text-[0.62rem] font-medium tracking-[0.16em] text-muted-foreground uppercase md:hidden'>
-                          Next Action
-                        </div>
-                        <span className='text-sm leading-5 text-foreground/90'>
-                          {match.nextStep}
-                        </span>
-                      </div>
-
-                      <div className='md:justify-self-end'>
-                        <div className='mb-1 text-[0.62rem] font-medium tracking-[0.16em] text-muted-foreground uppercase md:hidden'>
-                          Open
-                        </div>
-                        <Button asChild variant='ghost' size='sm' className='shrink-0'>
-                          <Link href={`/matches/${match.id}`}>
-                            Open
-                            <Icons.externalLink />
-                          </Link>
-                        </Button>
-                      </div>
+                      >
+                        {match.score}%
+                      </Badge>
                     </div>
-                  </article>
-                );
-              })}
-            </div>
-          </>
+
+                    <div className='space-y-1'>
+                      <p className='text-muted-foreground text-[0.62rem] font-medium tracking-[0.18em] uppercase'>
+                        Buyer
+                      </p>
+                      {lead ? (
+                        <Link
+                          href={`/leads/${lead.id}`}
+                          className='line-clamp-1 text-lg font-bold text-foreground hover:text-primary'
+                        >
+                          {lead.name}
+                        </Link>
+                      ) : (
+                        <span className='text-lg font-bold text-muted-foreground'>Missing lead</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className='flex flex-1 flex-col gap-3 px-4 py-4'>
+                    <div className='space-y-1'>
+                      <p className='text-muted-foreground text-[0.62rem] font-medium tracking-[0.18em] uppercase'>
+                        Matched with
+                      </p>
+                      {listing ? (
+                        <Link
+                          href={`/listings/${listing.id}`}
+                          className='line-clamp-2 text-base font-semibold text-foreground hover:text-primary'
+                        >
+                          {listing.address}
+                        </Link>
+                      ) : (
+                        <span className='text-base font-semibold text-muted-foreground'>
+                          Missing listing
+                        </span>
+                      )}
+                      {location ? <p className='text-sm text-muted-foreground'>{location}</p> : null}
+                    </div>
+
+                    <div className='space-y-2'>
+                      <div className='flex flex-wrap items-center gap-2 text-sm'>
+                        {price ? (
+                          <span className='font-semibold text-foreground'>{price}</span>
+                        ) : null}
+                        {profileBits ? (
+                          <span className='text-muted-foreground'>{profileBits}</span>
+                        ) : null}
+                      </div>
+                      <p className='text-sm leading-5 text-foreground/90'>{match.nextStep}</p>
+                    </div>
+
+                    <div className='mt-auto pt-1'>
+                      <Button asChild size='sm' className='w-full'>
+                        <Link href={`/matches/${match.id}`}>
+                          Open Match
+                          <Icons.externalLink />
+                        </Link>
+                      </Button>
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
         ) : (
           <div className='border-border/60 bg-card rounded-lg border px-6 py-10 text-center'>
             <p className='text-sm font-medium text-foreground'>

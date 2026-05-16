@@ -441,6 +441,38 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   );
 }
 
+function getListingStatusTone(status: ListingStatus) {
+  switch (status) {
+    case 'Active':
+      return 'border-brokeros-success/20 bg-brokeros-success/10 text-brokeros-success';
+    case 'Private':
+      return 'border-slate-200 bg-slate-100 text-slate-700';
+    case 'Coming Soon':
+      return 'border-brokeros-warning/20 bg-brokeros-warning/10 text-brokeros-warning';
+    case 'Under Review':
+      return 'border-blue-200 bg-blue-50 text-blue-700';
+    default:
+      return 'border-border bg-muted text-muted-foreground';
+  }
+}
+
+function formatListingLocation(home: HomeProfile) {
+  return [home.neighborhood, home.city, home.state].filter(Boolean).join(', ');
+}
+
+function formatListingStats(home: HomeProfile) {
+  return [home.beds ? `${home.beds} bd` : '', home.baths ? `${home.baths} ba` : '', home.sqft ? `${home.sqft} sqft` : '']
+    .filter(Boolean)
+    .join(' · ');
+}
+
+function formatFeaturePreview(home: HomeProfile) {
+  return [home.keyFeatures, home.upgrades]
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .join(' · ');
+}
+
 function HomeDetailsDialog({
   home,
   onOpenChange
@@ -507,66 +539,47 @@ function HomeProfileCard({
   home: HomeProfile;
   onSelect: (home: HomeProfile) => void;
 }) {
-  const locationParts = [home.neighborhood, home.city, home.state].filter(Boolean);
-  const homeStats = [
-    { label: 'Price', value: home.listingPrice || '—', mono: true },
-    { label: 'Beds', value: home.beds || '—' },
-    { label: 'Baths', value: home.baths || '—' },
-    { label: 'Sqft', value: home.sqft ? `${home.sqft}` : '—', mono: true }
-  ];
-  const highlights = [home.propertyType, home.keyFeatures, home.upgrades]
-    .map((item) => item.trim())
-    .filter(Boolean)
-    .slice(0, 3);
+  const location = formatListingLocation(home);
+  const stats = formatListingStats(home);
+  const features = formatFeaturePreview(home);
 
   return (
     <button
       type='button'
       onClick={() => onSelect(home)}
-      className='group bg-card hover:bg-muted/35 flex min-h-[15rem] w-full flex-col justify-between rounded-lg border p-5 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md'
+      className='group bg-card hover:bg-muted/20 flex min-h-[16rem] w-full max-w-[22.5rem] flex-col overflow-hidden rounded-xl border text-left shadow-sm transition-all duration-150 hover:-translate-y-px hover:border-border/80 hover:shadow-md'
     >
-      <div className='space-y-4'>
-        <div className='flex items-start justify-between gap-4'>
-          <div className='min-w-0 space-y-1'>
-            <h3 className='group-hover:text-primary truncate text-base font-semibold'>
-              {home.address}
-            </h3>
-            <p className='text-muted-foreground truncate text-xs'>
-              {locationParts.length > 0 ? locationParts.join(', ') : 'No location set'}
-            </p>
-          </div>
-          <Badge variant='outline' className='shrink-0 font-mono text-[0.62rem] uppercase'>
+      <div className='border-b px-4 py-4'>
+        <div className='mb-3 flex items-start justify-between gap-3'>
+          <Badge
+            variant='outline'
+            className={cn(
+              'rounded-full px-3 py-1 text-[0.65rem] font-semibold tracking-wide uppercase',
+              getListingStatusTone(home.listingStatus)
+            )}
+          >
             {home.listingStatus}
           </Badge>
+          <span className='text-base font-bold tabular-nums text-foreground'>
+            {home.listingPrice || '—'}
+          </span>
         </div>
 
-        <div className='grid grid-cols-2 gap-3 sm:grid-cols-4'>
-          {homeStats.map((stat) => (
-            <div key={stat.label} className='rounded-md border bg-background/60 px-3 py-2'>
-              <p className='text-muted-foreground text-[0.65rem] uppercase tracking-wide'>
-                {stat.label}
-              </p>
-              <p className={cn('mt-1 text-xs font-medium', stat.mono && 'font-mono')}>
-                {stat.value}
-              </p>
-            </div>
-          ))}
+        <div className='space-y-1'>
+          <h3 className='group-hover:text-primary line-clamp-2 text-lg font-bold leading-tight text-foreground'>
+            {home.address}
+          </h3>
+          <p className='text-sm text-muted-foreground'>{location || 'No location set'}</p>
+        </div>
+      </div>
+
+      <div className='flex flex-1 flex-col gap-3 px-4 py-4'>
+        <div className='space-y-2'>
+          <p className='text-sm font-medium text-foreground/90'>{stats || 'No home stats yet'}</p>
+          {features ? <p className='line-clamp-2 text-sm text-muted-foreground'>{features}</p> : null}
         </div>
 
-        {highlights.length > 0 ? (
-          <div className='flex flex-wrap gap-2'>
-            {highlights.map((item) => (
-              <span
-                key={item}
-                className='bg-muted/70 text-muted-foreground rounded-md px-2 py-1 text-[0.68rem]'
-              >
-                {item}
-              </span>
-            ))}
-          </div>
-        ) : null}
-
-        <div className='grid gap-2 border-t pt-4 text-xs sm:grid-cols-2'>
+        <div className='mt-auto grid gap-3 text-sm'>
           <div>
             <p className='text-muted-foreground text-[0.65rem] uppercase tracking-wide'>
               Seller lead
@@ -575,10 +588,10 @@ function HomeProfileCard({
           </div>
           <div>
             <p className='text-muted-foreground text-[0.65rem] uppercase tracking-wide'>
-              Agent notes
+              Key features
             </p>
-            <p className='text-muted-foreground line-clamp-2'>
-              {home.agentNotes || home.sellerDescription || 'No notes yet'}
+            <p className='line-clamp-2 text-muted-foreground'>
+              {home.keyFeatures || home.upgrades || home.sellerDescription || 'No notes yet'}
             </p>
           </div>
         </div>
@@ -597,8 +610,8 @@ function RecentHomesRail({
   const recentHomes = homes.slice(0, 5);
 
   return (
-    <aside className='bg-background h-fit border lg:sticky lg:top-4'>
-      <div className='border-b px-3 py-3'>
+    <aside className='bg-card h-fit overflow-hidden rounded-xl border shadow-sm lg:sticky lg:top-4'>
+      <div className='border-b px-4 py-3'>
         <h2 className='text-sm font-semibold'>Most Recent Homes</h2>
       </div>
       {recentHomes.length > 0 ? (
@@ -608,9 +621,9 @@ function RecentHomesRail({
               key={home.id}
               type='button'
               onClick={() => onSelect(home)}
-              className='hover:bg-muted/35 w-full px-3 py-3 text-left transition-colors'
+              className='hover:bg-muted/30 w-full px-4 py-3 text-left transition-colors'
             >
-              <p className='truncate text-xs font-medium'>{home.address}</p>
+              <p className='truncate text-sm font-medium'>{home.address}</p>
               <p className='text-muted-foreground mt-1 truncate text-[0.7rem]'>
                 {home.listingPrice || 'No price'} · {home.neighborhood || home.city || 'No area'}
               </p>
@@ -618,7 +631,7 @@ function RecentHomesRail({
           ))}
         </div>
       ) : (
-        <p className='text-muted-foreground px-3 py-4 text-xs'>No home profiles added yet.</p>
+        <p className='text-muted-foreground px-4 py-4 text-xs'>No home profiles added yet.</p>
       )}
     </aside>
   );
@@ -705,8 +718,8 @@ export function ListingsWorkspace() {
         </Button>
       }
     >
-      <div className='grid min-h-[calc(100vh-9rem)] gap-4 lg:grid-cols-[minmax(0,1fr)_18rem]'>
-        <main className='bg-background overflow-hidden border'>
+      <div className='grid min-h-[calc(100vh-9rem)] gap-4 xl:grid-cols-[minmax(0,1fr)_18rem]'>
+        <main className='bg-background overflow-hidden rounded-xl border shadow-sm'>
           <div className='flex items-center justify-between gap-3 border-b px-4 py-3'>
             <div>
               <h2 className='text-sm font-semibold'>Home Profiles</h2>
@@ -740,7 +753,7 @@ export function ListingsWorkspace() {
               </Button>
             </div>
           ) : sortedHomes.length > 0 ? (
-            <div className='grid gap-4 p-4'>
+            <div className='grid grid-cols-1 gap-4 p-4 justify-items-start sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4'>
               {sortedHomes.map((home) => (
                 <HomeProfileCard key={home.id} home={home} onSelect={setSelectedHome} />
               ))}
