@@ -112,6 +112,47 @@ export interface BrokerMatchData extends Match {
   raw: BrokerMatchRow;
 }
 
+export interface BrokerLeadMutationPayload {
+  name: string;
+  email?: string | null;
+  phone?: string | null;
+  lead_type: BrokerLeadRow['lead_type'];
+  status?: string | null;
+  temperature?: BrokerLeadRow['temperature'];
+  notes_md?: string | null;
+}
+
+export interface BrokerBuyerProfileMutationPayload {
+  lead_id: string;
+  budget_max?: number | null;
+  bedrooms_min?: number | null;
+  bathrooms_min?: number | null;
+  property_type?: string | null;
+  location_primary?: string | null;
+  must_haves?: string[] | null;
+  nice_to_haves?: string[] | null;
+  dealbreakers?: string[] | null;
+  must_have_keys?: string[] | null;
+  nice_to_have_keys?: string[] | null;
+  dealbreaker_keys?: string[] | null;
+  property_type_key?: string | null;
+}
+
+export interface BrokerHouseProfileMutationPayload {
+  seller_lead_id: string;
+  address?: string | null;
+  town?: string | null;
+  beds?: number | null;
+  baths?: number | null;
+  sqft?: number | null;
+  property_type?: string | null;
+  features?: string[] | null;
+  feature_keys?: string[] | null;
+  property_type_key?: string | null;
+  list_price?: number | null;
+  status?: string | null;
+}
+
 function assertNoSupabaseError(error: { message: string } | null, context: string) {
   if (error) throw new Error(`${context}: ${error.message}`);
 }
@@ -161,6 +202,14 @@ function formatDate(value: string | null | undefined) {
 
 function splitNotes(notes: string | null | undefined) {
   if (!notes?.trim()) return [];
+  try {
+    const parsed = JSON.parse(notes) as { kind?: string; notes?: string };
+    if (parsed.kind === 'brokeros.lead.workspace.v1') {
+      return splitNotes(parsed.notes);
+    }
+  } catch {
+    // Plain markdown notes from seed data or manual records.
+  }
   return notes
     .split(/\r?\n+/)
     .map((note) => note.replace(/^[-*]\s*/, '').trim())
@@ -490,4 +539,83 @@ export async function getBrokerMatchById(
     buyerLeads.get(row.buyer_lead_id) ?? null,
     houseProfiles.get(row.house_profile_id) ?? null
   );
+}
+
+export async function createBrokerLead(
+  payload: BrokerLeadMutationPayload,
+  client = createServerSupabaseAdmin()
+): Promise<BrokerLeadData> {
+  const { data, error } = await client
+    .from('leads')
+    .insert(payload)
+    .select(BROKER_LEAD_FIELDS)
+    .single();
+
+  assertNoSupabaseError(error, 'Failed to create lead');
+  const row = data as BrokerLeadRow;
+  return mapBrokerLead(row);
+}
+
+export async function updateBrokerLead(
+  id: string,
+  payload: Partial<BrokerLeadMutationPayload>,
+  client = createServerSupabaseAdmin()
+): Promise<BrokerLeadData | null> {
+  const { data, error } = await client
+    .from('leads')
+    .update(payload)
+    .eq('id', id)
+    .select(BROKER_LEAD_FIELDS)
+    .maybeSingle();
+
+  assertNoSupabaseError(error, `Failed to update lead ${id}`);
+  if (!data) return null;
+  const row = data as BrokerLeadRow;
+  const buyerProfiles =
+    row.lead_type === 'buyer' ? await fetchBuyerProfiles(client, [row.id]) : new Map();
+  return mapBrokerLead(row, buyerProfiles.get(row.id) ?? null);
+}
+
+export async function upsertBrokerBuyerProfile(
+  payload: BrokerBuyerProfileMutationPayload,
+  client = createServerSupabaseAdmin()
+): Promise<BrokerBuyerProfileRow> {
+  const { data, error } = await client
+    .from('buyer_profiles')
+    .upsert(payload, { onConflict: 'lead_id' })
+    .select(BROKER_BUYER_PROFILE_FIELDS)
+    .single();
+
+  assertNoSupabaseError(error, `Failed to upsert buyer_profile ${payload.lead_id}`);
+  return data as BrokerBuyerProfileRow;
+}
+
+export async function upsertBrokerHouseProfileForSeller(
+  payload: BrokerHouseProfileMutationPayload,
+  client = createServerSupabaseAdmin()
+): Promise<BrokerListingData> {
+  const { data: existing, error: existingError } = await client
+    .from('house_profiles')
+    .select('id')
+    .eq('seller_lead_id', payload.seller_lead_id)
+    .limit(1)
+    .maybeSingle();
+
+  assertNoSupabaseError(existingError, `Failed to load house_profile for seller ${payload.seller_lead_id}`);
+
+  const query = existing?.id
+    ? client
+        .from('house_profiles')
+        .update(payload)
+        .eq('id', existing.id)
+        .select(BROKER_HOUSE_PROFILE_FIELDS)
+        .single()
+    : client.from('house_profiles').insert(payload).select(BROKER_HOUSE_PROFILE_FIELDS).single();
+
+  const { data, error } = await query;
+  assertNoSupabaseError(error, `Failed to upsert house_profile for seller ${payload.seller_lead_id}`);
+
+  const row = data as BrokerHouseProfileRow;
+  const sellerLeads = await fetchLeadsByIds(client, [row.seller_lead_id]);
+  return mapBrokerListing(row, sellerLeads.get(row.seller_lead_id) ?? null);
 }
