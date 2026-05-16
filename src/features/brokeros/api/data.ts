@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { createServerSupabaseAdmin } from '@/lib/supabase/server-client';
+import { humanizeKey, humanizeList } from '@/lib/vocabulary/display';
 import type {
   Lead,
   LeadStage,
@@ -161,12 +162,15 @@ function numberValue(value: number | string | null | undefined) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-function titleCase(value: string | null | undefined) {
-  if (!value?.trim()) return '';
+function humanizePreference(value: string, prefix = '') {
+  const label = humanizeKey(value);
+  return label ? `${prefix}${label}` : '';
+}
+
+function humanizeRationaleText(value: string) {
   return value
-    .trim()
-    .replace(/[_-]+/g, ' ')
-    .replace(/\w\S*/g, (word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase());
+    .replace(/property_type/g, 'property type')
+    .replace(/"([^"]+)"/g, (_, token: string) => `"${humanizeKey(token)}"`);
 }
 
 function formatCurrency(value: number | null | undefined) {
@@ -256,13 +260,17 @@ function rationaleFromBreakdown(
   house?: BrokerListingData | null
 ) {
   const explicit = breakdown.rationale;
-  if (typeof explicit === 'string' && explicit.trim()) return explicit.trim();
+  if (typeof explicit === 'string' && explicit.trim()) {
+    return humanizeRationaleText(explicit.trim());
+  }
 
   const reasons = scoreBreakdownList(breakdown.reasons);
-  if (reasons.length) return reasons.slice(0, 3).join(' ');
+  if (reasons.length) return reasons.map(humanizeRationaleText).slice(0, 3).join(' ');
 
   const penalties = scoreBreakdownList(breakdown.penalties);
-  if (penalties.length) return `Review match details: ${penalties.slice(0, 2).join(' ')}`;
+  if (penalties.length) {
+    return `Review match details: ${penalties.map(humanizeRationaleText).slice(0, 2).join(' ')}`;
+  }
 
   return `Score generated from buyer criteria and ${house?.address ?? 'house profile'} attributes.`;
 }
@@ -280,9 +288,11 @@ export function mapBrokerLead(
   const notes = splitNotes(row.notes_md);
   const buyerPreferences = buyerProfile
     ? [
-        ...asArray(buyerProfile.must_haves),
-        ...asArray(buyerProfile.nice_to_haves),
-        ...asArray(buyerProfile.dealbreakers).map((item) => `Avoid: ${item}`)
+        ...humanizeList(asArray(buyerProfile.must_haves)),
+        ...humanizeList(asArray(buyerProfile.nice_to_haves)),
+        ...asArray(buyerProfile.dealbreakers)
+          .map((item) => humanizePreference(item, 'Avoid: '))
+          .filter(Boolean)
       ]
     : [];
 
@@ -313,7 +323,8 @@ export function mapBrokerListing(
   row: BrokerHouseProfileRow,
   sellerLead: BrokerLeadData | null = null
 ): BrokerListingData {
-  const features = asArray(row.features);
+  const features = humanizeList(asArray(row.features));
+  const propertyType = humanizeKey(row.property_type);
 
   return {
     id: row.id,
@@ -328,7 +339,7 @@ export function mapBrokerListing(
     agent: 'Unassigned',
     signal: features.length
       ? features.slice(0, 3).join(', ')
-      : titleCase(row.property_type) || 'House profile ready',
+      : propertyType || 'House profile ready',
     sellerLeadId: row.seller_lead_id,
     sellerLead,
     createdAt: row.created_at,

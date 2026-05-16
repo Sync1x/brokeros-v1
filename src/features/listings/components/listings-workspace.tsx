@@ -18,6 +18,7 @@ import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
+import { humanizeKey, humanizeList } from '@/lib/vocabulary/display';
 
 type ListingStatus = 'Private' | 'Coming Soon' | 'Active' | 'Under Review';
 
@@ -141,6 +142,14 @@ function formatNumber(value: number | string | null | undefined) {
   if (value == null) return '';
   const parsed = typeof value === 'number' ? value : Number(value);
   return Number.isFinite(parsed) && parsed > 0 ? String(parsed) : '';
+}
+
+function formatDisplayKey(value: string | null | undefined) {
+  return humanizeKey(value) || '';
+}
+
+function formatDisplayList(value: string | null | undefined) {
+  return humanizeList(splitFeatureList(value ?? '')).join(', ');
 }
 
 function mapListingToHomeProfile(listing: BrokerListingApiData): HomeProfile {
@@ -467,7 +476,7 @@ function formatListingStats(home: HomeProfile) {
 }
 
 function formatFeaturePreview(home: HomeProfile) {
-  return [home.keyFeatures, home.upgrades]
+  return [formatDisplayList(home.keyFeatures), home.upgrades]
     .map((item) => item.trim())
     .filter(Boolean)
     .join(' · ');
@@ -504,7 +513,7 @@ function HomeDetailsDialog({
               <dl className='grid gap-3 md:grid-cols-2'>
                 <DetailRow label='Seller lead' value={home.sellerLead} />
                 <DetailRow label='Listing price' value={home.listingPrice} />
-                <DetailRow label='Property type' value={home.propertyType} />
+                <DetailRow label='Property type' value={formatDisplayKey(home.propertyType)} />
                 <DetailRow
                   label='Profile'
                   value={`${home.beds || '—'} bd / ${home.baths || '—'} ba / ${home.sqft || '—'} sqft`}
@@ -519,7 +528,7 @@ function HomeDetailsDialog({
                 <DetailRow label='Condition' value={home.condition} />
                 <DetailRow label='Occupancy' value={home.occupancyStatus} />
                 <DetailRow label='Showing instructions' value={home.showingInstructions} />
-                <DetailRow label='Key features' value={home.keyFeatures} />
+                <DetailRow label='Key features' value={formatDisplayList(home.keyFeatures)} />
                 <DetailRow label='Upgrades' value={home.upgrades} />
                 <DetailRow label='Seller description' value={home.sellerDescription} />
                 <DetailRow label='Agent notes' value={home.agentNotes} />
@@ -591,7 +600,7 @@ function HomeProfileCard({
               Key features
             </p>
             <p className='line-clamp-2 text-muted-foreground'>
-              {home.keyFeatures || home.upgrades || home.sellerDescription || 'No notes yet'}
+              {formatDisplayList(home.keyFeatures) || home.upgrades || home.sellerDescription || 'No notes yet'}
             </p>
           </div>
         </div>

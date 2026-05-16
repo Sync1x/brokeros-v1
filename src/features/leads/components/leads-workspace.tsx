@@ -24,6 +24,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Icons } from '@/components/icons';
 import { LeadNameHoverCard, type LeadHoverProfile } from './lead-name-hover-card';
 import { cn } from '@/lib/utils';
+import { humanizeKey, humanizeList } from '@/lib/vocabulary/display';
 
 type LeadType = 'buyer' | 'seller';
 type SortKey = 'recent' | 'budget' | 'name';
@@ -309,17 +310,17 @@ function crmLeadHoverProfile(lead: CrmLead): LeadHoverProfile {
         ...baseDetails,
         { label: 'Beds', value: lead.bedrooms },
         { label: 'Baths', value: lead.bathrooms },
-        { label: 'Property', value: lead.propertyType },
+        { label: 'Property', value: formatDisplayKey(lead.propertyType) },
         { label: 'Timeline', value: lead.timeline },
         { label: 'Preapproved', value: lead.preapproved }
       ],
       notes: [
-        lead.mustHaves,
-        lead.niceToHaves,
-        lead.dealBreakers,
+        formatDisplayList(lead.mustHaves),
+        formatDisplayList(lead.niceToHaves),
+        formatDisplayList(lead.dealBreakers),
         lead.motivation,
         lead.notes
-      ].filter(Boolean)
+      ].filter((item) => Boolean(item && item !== '—'))
     };
   }
 
@@ -400,6 +401,19 @@ function parseWorkspaceEnvelope(value: string | null | undefined): WorkspaceNote
 function cleanDash(value: string | null | undefined) {
   if (!value || value === '—') return '';
   return value;
+}
+
+function formatDisplayKey(value: string | null | undefined) {
+  const cleaned = cleanDash(value);
+  return cleaned ? humanizeKey(cleaned) || '—' : '—';
+}
+
+function formatDisplayList(value: string | null | undefined) {
+  const cleaned = cleanDash(value);
+  if (!cleaned) return '—';
+
+  const displayValue = humanizeList(splitList(cleaned)).join(', ');
+  return displayValue || '—';
 }
 
 function numberOrNull(value: string) {
@@ -1140,7 +1154,7 @@ function HouseProfileBlock({
               label='Address'
               value={`${profile.address}, ${profile.city}, ${profile.state} ${profile.zip}`}
             />
-            <DetailRow label='Property type' value={profile.propertyType} />
+            <DetailRow label='Property type' value={formatDisplayKey(profile.propertyType)} />
             <DetailRow label='Price' value={profile.estimatedListingPrice} />
             <DetailRow label='Beds' value={profile.bedrooms} />
             <DetailRow label='Baths' value={profile.bathrooms} />
@@ -1155,7 +1169,7 @@ function HouseProfileBlock({
             <DetailRow label='Condition' value={profile.condition} />
             <DetailRow label='Occupancy' value={profile.occupancyStatus} />
             <DetailRow label='Showing instructions' value={profile.showingInstructions} />
-            <DetailRow label='Key features' value={profile.keyFeatures} />
+            <DetailRow label='Key features' value={formatDisplayList(profile.keyFeatures)} />
             <DetailRow label='Upgrades' value={profile.upgrades} />
             <DetailRow label='Seller description' value={profile.sellerDescription} />
             <DetailRow label='Agent notes' value={profile.agentNotes} />
@@ -1494,11 +1508,11 @@ function LeadProfilePanel({
               <DetailRow label='Preferred areas' value={lead.preferredAreas.join(', ')} />
               <DetailRow label='Bedrooms' value={lead.bedrooms} />
               <DetailRow label='Bathrooms' value={lead.bathrooms} />
-              <DetailRow label='Property type' value={lead.propertyType} />
+              <DetailRow label='Property type' value={formatDisplayKey(lead.propertyType)} />
               <DetailRow label='Square footage' value={lead.squareFootageRange} />
-              <DetailRow label='Must-haves' value={lead.mustHaves} />
-              <DetailRow label='Nice-to-haves' value={lead.niceToHaves} />
-              <DetailRow label='Deal breakers' value={lead.dealBreakers} />
+              <DetailRow label='Must-haves' value={formatDisplayList(lead.mustHaves)} />
+              <DetailRow label='Nice-to-haves' value={formatDisplayList(lead.niceToHaves)} />
+              <DetailRow label='Deal breakers' value={formatDisplayList(lead.dealBreakers)} />
             </PanelSection>
             <PanelSection title='Buying Situation'>
               <DetailRow label='Timeline' value={lead.timeline} />
