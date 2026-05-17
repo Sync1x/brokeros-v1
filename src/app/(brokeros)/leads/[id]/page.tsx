@@ -1,19 +1,39 @@
 import PageContainer from '@/components/layout/page-container';
-import { Badge } from '@/components/ui/badge';
-import { brokerLeads, brokerMatches } from '@/constants/brokeros-mock-data';
+import { StatusPill } from '@/components/brokeros/status-pill';
+import { getBrokerLeadById, listBrokerMatches } from '@/features/brokeros/api/data';
 import { LeadNameHoverCard } from '@/features/leads/components/lead-name-hover-card';
 import { brokerLeadHoverProfile } from '@/features/leads/utils/lead-hover-profile';
 import { notFound } from 'next/navigation';
 
+function temperatureVariant(temperature: string | null | undefined) {
+  if (temperature === 'hot') return 'hot';
+  if (temperature === 'warm') return 'warm';
+  return 'cold';
+}
+
+function matchQualityLabel(score: number) {
+  if (score >= 90) return 'Strong Match';
+  if (score >= 80) return 'Good Match';
+  if (score >= 70) return 'Possible Match';
+  return 'Weak Match';
+}
+
+function matchQualityVariant(score: number) {
+  if (score >= 90) return 'success';
+  if (score >= 80) return 'info';
+  if (score >= 70) return 'warning';
+  return 'danger';
+}
+
 export default async function LeadDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const lead = brokerLeads.find((item) => item.id === id);
+  const [lead, allMatches] = await Promise.all([getBrokerLeadById(id), listBrokerMatches()]);
 
   if (!lead) {
     notFound();
   }
 
-  const matches = brokerMatches.filter((match) => match.leadId === lead.id);
+  const matches = allMatches.filter((match) => match.leadId === lead.id);
 
   return (
     <PageContainer pageTitle={lead.name} pageDescription={`${lead.intent} in ${lead.desiredArea}.`}>
@@ -24,9 +44,9 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
               {lead.name}
             </h2>
           </LeadNameHoverCard>
-          <Badge variant='outline' className='font-mono text-[0.65rem] uppercase'>
+          <StatusPill variant={temperatureVariant(lead.temperature)} dot>
             {lead.temperature}
-          </Badge>
+          </StatusPill>
           <dl className='mt-3 divide-y text-xs'>
             <div className='py-2 first:pt-0'>
               <dt className='text-muted-foreground font-mono text-[0.65rem] uppercase'>Budget</dt>
@@ -70,9 +90,15 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
                   className='flex items-center justify-between gap-3 px-2 py-2 transition-colors hover:bg-muted/20'
                 >
                   <span className='text-xs'>{match.rationale}</span>
-                  <Badge variant='outline' className='font-mono'>
-                    {match.score}%
-                  </Badge>
+                  <div className='flex items-center gap-2'>
+                    <StatusPill
+                      appearance='outline'
+                      variant={matchQualityVariant(match.score)}
+                    >
+                      {matchQualityLabel(match.score)}
+                    </StatusPill>
+                    <StatusPill appearance='score'>{match.score}%</StatusPill>
+                  </div>
                 </div>
               ))}
             </div>

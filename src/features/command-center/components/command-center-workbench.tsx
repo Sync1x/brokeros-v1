@@ -5,6 +5,7 @@ import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { StatusPill } from '@/components/brokeros/status-pill';
 import { cn } from '@/lib/utils';
 import type { CommandAction, CommandActionState, CommandPace } from '../api/types';
 
@@ -26,30 +27,33 @@ interface CommandCenterWorkbenchProps {
 }
 
 const typeLabels: Record<CommandAction['type'], string> = {
-  new_lead: 'Lead',
+  new_lead: 'Needs Reply',
   follow_up: 'Follow-up',
-  match_ready: 'Ready',
-  showing_prep: 'Showing',
-  deal_blocker: 'Blocker',
-  seller_launch: 'Seller',
-  offer_task: 'Offer'
+  match_ready: 'Match Ready',
+  showing_prep: 'Showing Prep',
+  deal_blocker: 'Deal Blocker',
+  seller_launch: 'Listing Launch',
+  offer_task: 'Offer Task'
 };
 
-function priorityClass(priority: CommandAction['priority']) {
-  if (priority === 'critical') return 'border-red-500 bg-red-500 text-white';
-  if (priority === 'high') return 'border-orange-500 bg-orange-500 text-white';
-  return 'border-blue-500 bg-blue-500 text-white';
+function priorityVariant(priority: CommandAction['priority']) {
+  if (priority === 'critical') return 'danger';
+  if (priority === 'high') return 'warning';
+  return 'info';
 }
 
-function PriorityBadge({ priority }: { priority: CommandAction['priority'] }) {
-  return (
-    <Badge
-      variant='outline'
-      className={cn('font-mono text-[0.62rem] uppercase', priorityClass(priority))}
-    >
-      {priority}
-    </Badge>
-  );
+function priorityLabel(priority: CommandAction['priority']) {
+  if (priority === 'critical') return 'Critical';
+  if (priority === 'high') return 'High';
+  return 'Normal';
+}
+
+function actionTypeVariant(type: CommandAction['type']) {
+  if (type === 'deal_blocker') return 'danger';
+  if (type === 'match_ready' || type === 'showing_prep') return 'success';
+  if (type === 'follow_up' || type === 'offer_task') return 'warning';
+  if (type === 'new_lead') return 'hot';
+  return 'neutral';
 }
 
 function readStoredState() {
@@ -116,7 +120,9 @@ function ActionCard({
           className='grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-2 text-left'
           aria-expanded={isSelected}
         >
-          <PriorityBadge priority={action.priority} />
+          <StatusPill variant={priorityVariant(action.priority)} dot>
+            {priorityLabel(action.priority)}
+          </StatusPill>
           <h3
             className={cn(
               'truncate text-sm font-semibold leading-tight transition-colors hover:text-primary',
@@ -164,9 +170,11 @@ function ActionCard({
                 Email
               </Button>
             )}
-            <PriorityBadge priority={action.priority} />
+            <StatusPill variant={actionTypeVariant(action.type)} dot>
+              {typeLabels[action.type]}
+            </StatusPill>
             <span className='font-mono text-[0.62rem] text-muted-foreground uppercase'>
-              {typeLabels[action.type]} / {action.dueAt ?? 'Today'}
+              {action.dueAt ?? 'Today'}
             </span>
           </div>
           <p className='mt-2 text-xs font-medium'>{action.nextAction}</p>
@@ -268,7 +276,7 @@ export function CommandCenterWorkbench({ actions, pace, sideSlot }: CommandCente
 
   return (
     <div className='grid w-full min-h-0 gap-4 lg:h-[calc(100dvh-4.75rem)] lg:grid-cols-[minmax(0,1fr)_340px] lg:overflow-hidden'>
-      <div className='grid min-w-0 gap-4 lg:min-h-0 lg:grid-rows-[minmax(0,1fr)_auto] lg:overflow-hidden'>
+      <div className='grid min-w-0 gap-4 lg:min-h-0 lg:grid-rows-[minmax(0,1fr)_auto] lg:overflow-hidden lg:pt-11'>
         <section className='flex min-h-0 flex-col overflow-hidden rounded-xl border bg-background shadow-xs'>
           <div className='flex items-center justify-between gap-3 border-b bg-muted/20 px-3 py-2.5'>
             <div className='min-w-0'>

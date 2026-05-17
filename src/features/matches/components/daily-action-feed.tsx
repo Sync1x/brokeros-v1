@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Badge } from '@/components/ui/badge';
+import { StatusPill } from '@/components/brokeros/status-pill';
 import {
   Table,
   TableBody,
@@ -66,10 +66,10 @@ const dailyActions = [
   }
 ];
 
-function intentClass(intent: string) {
-  if (intent === 'strong') return 'border-brokeros-success/60 text-brokeros-success';
-  if (intent === 'warning') return 'border-brokeros-warning/60 text-brokeros-warning';
-  return 'border-brokeros-danger/60 text-brokeros-danger';
+function intentVariant(intent: string) {
+  if (intent === 'strong') return 'success';
+  if (intent === 'warning') return 'warning';
+  return 'danger';
 }
 
 export function DailyActionFeed() {
@@ -89,9 +89,9 @@ export function DailyActionFeed() {
             <TableRow key={item.id}>
               <TableCell>
                 <div className='flex items-center gap-2'>
-                  <Badge variant='outline' className={`font-mono ${intentClass(item.intent)}`}>
+                  <StatusPill variant={intentVariant(item.intent)} dot>
                     {item.type}
-                  </Badge>
+                  </StatusPill>
                 </div>
                 <p className='mt-1 text-sm font-medium'>{item.happened}</p>
               </TableCell>

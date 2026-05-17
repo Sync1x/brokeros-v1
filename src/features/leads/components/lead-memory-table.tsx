@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Badge } from '@/components/ui/badge';
+import { StatusPill } from '@/components/brokeros/status-pill';
 import {
   Table,
   TableBody,
@@ -11,6 +11,15 @@ import {
 import type { Lead, Match } from '@/types/brokeros';
 import { LeadNameHoverCard } from './lead-name-hover-card';
 import { brokerLeadHoverProfile } from '../utils/lead-hover-profile';
+
+function leadStageVariant(stage: Lead['stage']) {
+  if (stage === 'Closed') return 'success';
+  if (stage === 'Under Contract') return 'success';
+  if (stage === 'Offer') return 'warning';
+  if (stage === 'Touring') return 'info';
+  if (stage === 'Nurture') return 'neutral';
+  return 'neutral';
+}
 
 interface LeadMemoryTableProps {
   leads: Lead[];
@@ -48,9 +57,9 @@ export function LeadMemoryTable({ leads, matches }: LeadMemoryTableProps) {
                   </p>
                 </TableCell>
                 <TableCell>
-                  <Badge variant='outline' className='font-mono text-[0.65rem] uppercase'>
+                  <StatusPill variant={leadStageVariant(lead.stage)} dot>
                     {lead.stage}
-                  </Badge>
+                  </StatusPill>
                   <p className='mt-1 text-xs text-muted-foreground'>{lead.intent}</p>
                 </TableCell>
                 <TableCell className='font-mono text-xs'>{lead.budget}</TableCell>

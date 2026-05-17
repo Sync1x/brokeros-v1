@@ -1,7 +1,6 @@
 'use client';
 
-import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
-import { Badge } from '@/components/ui/badge';
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
@@ -12,15 +11,24 @@ import {
   DialogHeader,
   DialogTitle
 } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Icons } from '@/components/icons';
+import { StatusPill } from '@/components/brokeros/status-pill';
 import { LeadNameHoverCard, type LeadHoverProfile } from './lead-name-hover-card';
 import { cn } from '@/lib/utils';
+import { humanizeKey, humanizeList } from '@/lib/vocabulary/display';
 
 type LeadType = 'buyer' | 'seller';
 type SortKey = 'recent' | 'budget' | 'name';
-type LeadStatus = 'Active' | 'Hot' | 'Matched' | 'Prospect' | 'Stale' | 'New' | 'Under contract';
+type LeadStatus = 'Hot' | 'Prospect' | 'Stale' | 'Active' | 'Inactive';
 const LOCAL_LEADS_EVENT = 'brokeros:local-leads-updated';
 
 interface HouseProfile {
@@ -104,8 +112,114 @@ interface SellerLead extends BaseLead {
 }
 
 type CrmLead = BuyerLead | SellerLead;
-type BuyerLeadSeed = Omit<BuyerLead, 'contactRank'>;
-type SellerLeadSeed = Omit<SellerLead, 'contactRank'>;
+
+interface BrokerApiBuyerProfile {
+  budget_max: number | null;
+  bedrooms_min: number | string | null;
+  bathrooms_min: number | string | null;
+  property_type: string | null;
+  location_primary: string | null;
+  must_haves: string[] | null;
+  nice_to_haves: string[] | null;
+  dealbreakers: string[] | null;
+}
+
+interface BrokerApiLead {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  stage: string;
+  temperature: string;
+  budget: string;
+  desiredArea: string;
+  intent: string;
+  lastContact: string;
+  assignedAgent: string;
+  notes: string[];
+  preferences: string[];
+  leadType: LeadType;
+  createdAt: string | null;
+  buyerProfile: BrokerApiBuyerProfile | null;
+  raw: {
+    status: string | null;
+    notes_md: string | null;
+  };
+}
+
+interface BrokerApiHouseProfile {
+  id: string;
+  sellerLeadId: string;
+  address: string;
+  neighborhood: string;
+  price: string;
+  beds: number;
+  baths: number;
+  sqft: string;
+  status: string;
+  features: string[];
+  raw: {
+    address: string | null;
+    town: string | null;
+    beds: number | string | null;
+    baths: number | string | null;
+    sqft: number | null;
+    property_type: string | null;
+    features: string[] | null;
+    list_price: number | null;
+    status: string | null;
+  };
+}
+
+interface BrokerLeadsResponse {
+  leads: BrokerApiLead[];
+  houseProfiles: BrokerApiHouseProfile[];
+}
+
+interface BrokerLeadResponse {
+  lead: BrokerApiLead;
+}
+
+interface WorkspaceNotesEnvelope {
+  kind: 'brokeros.lead.workspace.v1';
+  notes: string;
+  preferredContactMethod?: string;
+  source?: string;
+  assignedAgent?: string;
+  area?: string;
+  lastContact?: string;
+  nextFollowUp?: string;
+  documents?: string[];
+  activity?: string[];
+  buyer?: Partial<
+    Pick<
+      BuyerLead,
+      | 'budgetMin'
+      | 'squareFootageRange'
+      | 'timeline'
+      | 'firstTimeBuyer'
+      | 'preapproved'
+      | 'preapprovalAmount'
+      | 'lender'
+      | 'currentHousingSituation'
+      | 'motivation'
+    >
+  >;
+  seller?: Partial<
+    Pick<
+      SellerLead,
+      | 'targetSaleTimeline'
+      | 'reasonForSelling'
+      | 'expectedListingPrice'
+      | 'agentEstimatedValue'
+      | 'occupancyStatus'
+      | 'hasMortgage'
+      | 'needsToBuyAfterSelling'
+      | 'listingAppointmentDate'
+      | 'sellerUrgency'
+    >
+  >;
+}
 
 const emptyHouseProfile: HouseProfile = {
   address: '',
@@ -133,451 +247,24 @@ const emptyHouseProfile: HouseProfile = {
   agentNotes: ''
 };
 
-const buyerLeadSeeds = [
-  {
-    id: 'buyer-001',
-    type: 'buyer',
-    name: 'James Okafor',
-    status: 'New',
-    phone: '(312) 555-0140',
-    email: 'james.okafor@example.com',
-    preferredContactMethod: 'Text',
-    source: 'Website inquiry',
-    assignedAgent: 'Mara Chen',
-    area: 'Logan Square',
-    lastContact: 'Today',
-    nextFollowUp: 'Tomorrow, 10:00 AM',
-    budgetMin: '$450K',
-    budgetMax: '$520K',
-    preferredAreas: ['Logan Square', 'Avondale', 'Bucktown'],
-    bedrooms: '2+',
-    bathrooms: '2',
-    propertyType: 'Condo',
-    squareFootageRange: '1,000-1,400 sqft',
-    mustHaves: 'Transit access, outdoor space',
-    niceToHaves: 'Garage parking, newer kitchen',
-    dealBreakers: 'Garden unit, high HOA',
-    timeline: '60 days',
-    firstTimeBuyer: 'Yes',
-    preapproved: 'Yes',
-    preapprovalAmount: '$550K',
-    lender: 'Guaranteed Rate',
-    currentHousingSituation: 'Renting in Logan Square',
-    motivation: 'Lease ending this summer',
-    documents: ['Preapproval letter'],
-    activity: ['Inquiry received from listing portal', 'Budget confirmed by text'],
-    notes: 'Wants a condo near transit with outdoor space.'
-  },
-  {
-    id: 'buyer-002',
-    type: 'buyer',
-    name: 'Marcus Webb',
-    status: 'Hot',
-    phone: '(773) 555-0199',
-    email: 'marcus.webb@example.com',
-    preferredContactMethod: 'Call',
-    source: 'Agent referral',
-    assignedAgent: 'Noah Vale',
-    area: 'River North',
-    lastContact: 'Yesterday',
-    nextFollowUp: 'Today, 4:00 PM',
-    budgetMin: '$1M',
-    budgetMax: '$1.2M',
-    preferredAreas: ['River North', 'Streeterville', 'West Loop'],
-    bedrooms: '3+',
-    bathrooms: '2.5+',
-    propertyType: 'Condo',
-    squareFootageRange: '1,800-2,400 sqft',
-    mustHaves: 'Full-service building, parking, skyline view',
-    niceToHaves: 'Fitness center, balcony',
-    dealBreakers: 'No parking, investor-heavy building',
-    timeline: '30 days',
-    firstTimeBuyer: 'No',
-    preapproved: 'Yes',
-    preapprovalAmount: '$1.25M',
-    lender: 'Chase Private Client',
-    currentHousingSituation: 'Selling out of state',
-    motivation: 'Corporate relocation',
-    documents: ['Proof of funds', 'Lender intro'],
-    activity: ['Requested Saturday tour block', 'Viewed 4 saved listings'],
-    notes: 'Ready to tour full-service buildings this week.'
-  },
-  {
-    id: 'buyer-003',
-    type: 'buyer',
-    name: 'Sarah Chen',
-    status: 'Matched',
-    phone: '(312) 555-0164',
-    email: 'sarah.chen@example.com',
-    preferredContactMethod: 'Email',
-    source: 'Open house',
-    assignedAgent: 'Elena Ruiz',
-    area: 'Lincoln Park',
-    lastContact: 'May 3',
-    nextFollowUp: 'May 7, 9:30 AM',
-    budgetMin: '$760K',
-    budgetMax: '$850K',
-    preferredAreas: ['Lincoln Park', 'Lakeview'],
-    bedrooms: '3',
-    bathrooms: '2',
-    propertyType: 'Townhome',
-    squareFootageRange: '1,600-2,100 sqft',
-    mustHaves: 'School district, family room',
-    niceToHaves: 'Small yard, finished basement',
-    dealBreakers: 'Major renovation',
-    timeline: '90 days',
-    firstTimeBuyer: 'No',
-    preapproved: 'Pending',
-    preapprovalAmount: '$850K target',
-    lender: 'TBD',
-    currentHousingSituation: 'Owns condo',
-    motivation: 'More space near schools',
-    documents: ['Buyer intake'],
-    activity: ['Match brief sent', 'Asked about school boundaries'],
-    notes: 'Matched to two townhome options near schools.'
-  },
-  {
-    id: 'buyer-004',
-    type: 'buyer',
-    name: 'Elena Torres',
-    status: 'Active',
-    phone: '(708) 555-0128',
-    email: 'elena.torres@example.com',
-    preferredContactMethod: 'Text',
-    source: 'Zillow',
-    assignedAgent: 'Mara Chen',
-    area: 'Wicker Park',
-    lastContact: 'May 2',
-    nextFollowUp: 'May 6, 2:00 PM',
-    budgetMin: '$650K',
-    budgetMax: '$720K',
-    preferredAreas: ['Wicker Park', 'Ukrainian Village'],
-    bedrooms: '2',
-    bathrooms: '2',
-    propertyType: 'Condo',
-    squareFootageRange: '1,200-1,600 sqft',
-    mustHaves: 'Deeded parking, newer construction',
-    niceToHaves: 'Private roof deck',
-    dealBreakers: 'Walk-up above third floor',
-    timeline: '45 days',
-    firstTimeBuyer: 'Yes',
-    preapproved: 'Yes',
-    preapprovalAmount: '$750K',
-    lender: 'Wintrust',
-    currentHousingSituation: 'Renting',
-    motivation: 'Wants to stop renting',
-    documents: ['Agency agreement'],
-    activity: ['Completed needs analysis', 'Saved parking-filtered search'],
-    notes: 'Prefers newer construction and deeded parking.'
-  },
-  {
-    id: 'buyer-005',
-    type: 'buyer',
-    name: 'David Kim',
-    status: 'Prospect',
-    phone: '(312) 555-0115',
-    email: 'david.kim@example.com',
-    preferredContactMethod: 'Email',
-    source: 'Newsletter',
-    assignedAgent: 'Noah Vale',
-    area: 'Gold Coast',
-    lastContact: 'Apr 30',
-    nextFollowUp: 'May 14',
-    budgetMin: '$850K',
-    budgetMax: '$950K',
-    preferredAreas: ['Gold Coast', 'Old Town'],
-    bedrooms: '2+',
-    bathrooms: '2',
-    propertyType: 'Condo',
-    squareFootageRange: '1,300-1,900 sqft',
-    mustHaves: 'Doorman, lake access',
-    niceToHaves: 'Balcony, valet parking',
-    dealBreakers: 'High special assessments',
-    timeline: '6 months',
-    firstTimeBuyer: 'No',
-    preapproved: 'No',
-    preapprovalAmount: 'Not started',
-    lender: 'Needs referral',
-    currentHousingSituation: 'Owns primary residence',
-    motivation: 'Potential city pied-a-terre',
-    documents: ['Market snapshot'],
-    activity: ['Subscribed to neighborhood alert', 'Opened pricing report'],
-    notes: 'Early research phase, wants monthly market updates.'
-  },
-  {
-    id: 'buyer-006',
-    type: 'buyer',
-    name: 'Angela Ross',
-    status: 'Stale',
-    phone: '(872) 555-0181',
-    email: 'angela.ross@example.com',
-    preferredContactMethod: 'Text',
-    source: 'Past client referral',
-    assignedAgent: 'Elena Ruiz',
-    area: 'Bridgeport',
-    lastContact: 'Apr 21',
-    nextFollowUp: 'May 8',
-    budgetMin: '$340K',
-    budgetMax: '$380K',
-    preferredAreas: ['Bridgeport', 'McKinley Park'],
-    bedrooms: '2',
-    bathrooms: '1.5+',
-    propertyType: 'Single family',
-    squareFootageRange: '900-1,300 sqft',
-    mustHaves: 'Yard, low taxes',
-    niceToHaves: 'Finished basement',
-    dealBreakers: 'Flood history',
-    timeline: 'Unknown',
-    firstTimeBuyer: 'Yes',
-    preapproved: 'Expired',
-    preapprovalAmount: '$390K expired',
-    lender: 'Needs refresh',
-    currentHousingSituation: 'Renting',
-    motivation: 'Needs reactivation',
-    documents: ['Old preapproval'],
-    activity: ['No response to follow-up', 'Last search opened Apr 22'],
-    notes: 'Needs reactivation and updated lender conversation.'
-  }
-] satisfies BuyerLeadSeed[];
-
-const sellerLeadSeeds = [
-  {
-    id: 'seller-001',
-    type: 'seller',
-    name: 'Robert Hunt',
-    status: 'New',
-    phone: '(312) 555-0107',
-    email: 'robert.hunt@example.com',
-    preferredContactMethod: 'Call',
-    source: 'Home valuation page',
-    assignedAgent: 'Mara Chen',
-    area: 'Hyde Park',
-    lastContact: 'Today',
-    nextFollowUp: 'Tomorrow, 1:00 PM',
-    targetSaleTimeline: '60 days',
-    reasonForSelling: 'Relocating for work',
-    expectedListingPrice: '$890K',
-    agentEstimatedValue: '$860K-$900K',
-    occupancyStatus: 'Owner occupied',
-    hasMortgage: 'Yes',
-    needsToBuyAfterSelling: 'No',
-    listingAppointmentDate: 'May 9',
-    sellerUrgency: 'Medium',
-    houseProfile: {
-      ...emptyHouseProfile,
-      address: '5410 S Harper Ave',
-      city: 'Chicago',
-      zip: '60615',
-      propertyType: 'Single family',
-      estimatedListingPrice: '$890K',
-      bedrooms: '4',
-      bathrooms: '3',
-      squareFeet: '2,650',
-      lotSize: '3,900 sqft',
-      yearBuilt: '1912',
-      parking: '2-car garage',
-      basement: 'Finished',
-      heating: 'Gas forced air',
-      cooling: 'Central air',
-      hoa: 'None',
-      condition: 'Updated',
-      occupancyStatus: 'Owner occupied',
-      showingInstructions: 'Appointment only',
-      keyFeatures: 'Sunroom, original millwork, renovated kitchen',
-      upgrades: 'Kitchen 2022, HVAC 2021',
-      sellerDescription: 'Classic Hyde Park home near campus.',
-      agentNotes: 'Prep exterior paint before photos.'
-    },
-    documents: ['Seller intake'],
-    activity: ['Valuation request submitted', 'Asked for staging vendor'],
-    notes: 'Needs CMA and prep checklist before signing.'
-  },
-  {
-    id: 'seller-002',
-    type: 'seller',
-    name: 'Mei Tanaka',
-    status: 'Under contract',
-    phone: '(773) 555-0148',
-    email: 'mei.tanaka@example.com',
-    preferredContactMethod: 'Email',
-    source: 'Past client',
-    assignedAgent: 'Noah Vale',
-    area: 'Pilsen',
-    lastContact: 'Yesterday',
-    nextFollowUp: 'May 8',
-    targetSaleTimeline: 'Closing May 28',
-    reasonForSelling: 'Upsizing',
-    expectedListingPrice: '$540K',
-    agentEstimatedValue: '$535K',
-    occupancyStatus: 'Owner occupied',
-    hasMortgage: 'Yes',
-    needsToBuyAfterSelling: 'Yes',
-    listingAppointmentDate: 'Completed',
-    sellerUrgency: 'High',
-    houseProfile: undefined,
-    documents: ['Executed contract', 'Inspection response'],
-    activity: ['Contract packet uploaded', 'Closing timeline confirmed'],
-    notes: 'Attorney review complete, inspection credits resolved.'
-  },
-  {
-    id: 'seller-003',
-    type: 'seller',
-    name: 'Tom Briggs',
-    status: 'Active',
-    phone: '(312) 555-0194',
-    email: 'tom.briggs@example.com',
-    preferredContactMethod: 'Call',
-    source: 'Sphere',
-    assignedAgent: 'Elena Ruiz',
-    area: 'Lincoln Square',
-    lastContact: 'May 3',
-    nextFollowUp: 'May 6, 5:00 PM',
-    targetSaleTimeline: 'Now',
-    reasonForSelling: 'Downsizing',
-    expectedListingPrice: '$1.1M',
-    agentEstimatedValue: '$1.08M',
-    occupancyStatus: 'Owner occupied',
-    hasMortgage: 'No',
-    needsToBuyAfterSelling: 'No',
-    listingAppointmentDate: 'Completed',
-    sellerUrgency: 'High',
-    houseProfile: {
-      ...emptyHouseProfile,
-      address: '2231 W Wilson Ave',
-      city: 'Chicago',
-      zip: '60625',
-      propertyType: 'Single family',
-      estimatedListingPrice: '$1.1M',
-      bedrooms: '5',
-      bathrooms: '3.5',
-      squareFeet: '3,200',
-      lotSize: '4,600 sqft',
-      yearBuilt: '1908',
-      parking: 'Garage',
-      basement: 'Partially finished',
-      heating: 'Radiant',
-      cooling: 'SpacePak',
-      hoa: 'None',
-      condition: 'Good',
-      occupancyStatus: 'Owner occupied',
-      showingInstructions: 'Use ShowingTime',
-      keyFeatures: 'Wide lot, vintage details, chef kitchen',
-      upgrades: 'Roof 2020, baths refreshed 2023',
-      sellerDescription: 'Large family home near Lincoln Square retail.',
-      agentNotes: 'Monitor price feedback after second weekend.'
-    },
-    documents: ['Listing agreement', 'Disclosures'],
-    activity: ['Weekend showing report sent', 'Price feedback logged'],
-    notes: 'Open house produced three qualified follow-ups.'
-  },
-  {
-    id: 'seller-004',
-    type: 'seller',
-    name: 'Fatima Al-Hassan',
-    status: 'Active',
-    phone: '(224) 555-0162',
-    email: 'fatima.alhassan@example.com',
-    preferredContactMethod: 'Text',
-    source: 'Instagram campaign',
-    assignedAgent: 'Mara Chen',
-    area: 'Andersonville',
-    lastContact: 'May 1',
-    nextFollowUp: 'May 6',
-    targetSaleTimeline: '45 days',
-    reasonForSelling: 'Moving closer to family',
-    expectedListingPrice: '$420K',
-    agentEstimatedValue: '$410K-$430K',
-    occupancyStatus: 'Owner occupied',
-    hasMortgage: 'Yes',
-    needsToBuyAfterSelling: 'No',
-    listingAppointmentDate: 'May 12',
-    sellerUrgency: 'Medium',
-    houseProfile: undefined,
-    documents: ['Photo set', 'MLS draft'],
-    activity: ['Photos delivered', 'MLS draft shared'],
-    notes: 'Photography complete; launch copy needs approval.'
-  },
-  {
-    id: 'seller-005',
-    type: 'seller',
-    name: 'Priya Nair',
-    status: 'Prospect',
-    phone: '(773) 555-0176',
-    email: 'priya.nair@example.com',
-    preferredContactMethod: 'Email',
-    source: 'CMA request',
-    assignedAgent: 'Noah Vale',
-    area: 'Lakeview',
-    lastContact: 'Apr 29',
-    nextFollowUp: 'May 15',
-    targetSaleTimeline: 'Fall',
-    reasonForSelling: 'Testing market',
-    expectedListingPrice: '$675K',
-    agentEstimatedValue: '$650K-$680K',
-    occupancyStatus: 'Tenant occupied',
-    hasMortgage: 'Yes',
-    needsToBuyAfterSelling: 'Maybe',
-    listingAppointmentDate: 'Not scheduled',
-    sellerUrgency: 'Low',
-    houseProfile: undefined,
-    documents: ['CMA report'],
-    activity: ['CMA opened', 'Asked about private buyer list'],
-    notes: 'Considering off-market preview before public listing.'
-  },
-  {
-    id: 'seller-006',
-    type: 'seller',
-    name: 'Chris Park',
-    status: 'Stale',
-    phone: '(312) 555-0133',
-    email: 'chris.park@example.com',
-    preferredContactMethod: 'Text',
-    source: 'Rental investor list',
-    assignedAgent: 'Elena Ruiz',
-    area: 'West Loop',
-    lastContact: 'Apr 18',
-    nextFollowUp: 'May 10',
-    targetSaleTimeline: 'Paused',
-    reasonForSelling: 'Waiting for lease end',
-    expectedListingPrice: '$650K',
-    agentEstimatedValue: '$625K-$655K',
-    occupancyStatus: 'Tenant occupied',
-    hasMortgage: 'Yes',
-    needsToBuyAfterSelling: 'No',
-    listingAppointmentDate: 'Not scheduled',
-    sellerUrgency: 'Low',
-    houseProfile: undefined,
-    documents: ['Rental comp sheet'],
-    activity: ['Lease timing note added', 'No response to valuation update'],
-    notes: 'Follow up after tenant renewal decision.'
-  }
-] satisfies SellerLeadSeed[];
-
-const initialBuyerLeads: BuyerLead[] = buyerLeadSeeds.map((lead, index) => ({
-  ...lead,
-  contactRank: index
-}));
-
-const initialSellerLeads: SellerLead[] = sellerLeadSeeds.map((lead, index) => ({
-  ...lead,
-  contactRank: index
-}));
-
 const sortTabs: { key: SortKey; label: string }[] = [
   { key: 'recent', label: 'Recent' },
   { key: 'budget', label: 'Budget' },
   { key: 'name', label: 'Name' }
 ];
 
-const statusOptions: LeadStatus[] = [
-  'Active',
-  'Hot',
-  'Matched',
-  'Prospect',
-  'Stale',
-  'New',
-  'Under contract'
-];
+const statusOptions: LeadStatus[] = ['Hot', 'Prospect', 'Stale', 'Active', 'Inactive'];
+
+function normalizeLeadStatus(value: string): LeadStatus {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'hot') return 'Hot';
+  if (normalized === 'stale') return 'Stale';
+  if (normalized === 'active') return 'Active';
+  if (normalized === 'inactive') return 'Inactive';
+  if (normalized === 'new') return 'Prospect';
+  if (normalized === 'under contract') return 'Active';
+  return 'Prospect';
+}
 
 function parseCurrency(value: string) {
   const numeric = Number(value.replaceAll(/[^0-9.]/g, ''));
@@ -623,17 +310,17 @@ function crmLeadHoverProfile(lead: CrmLead): LeadHoverProfile {
         ...baseDetails,
         { label: 'Beds', value: lead.bedrooms },
         { label: 'Baths', value: lead.bathrooms },
-        { label: 'Property', value: lead.propertyType },
+        { label: 'Property', value: formatDisplayKey(lead.propertyType) },
         { label: 'Timeline', value: lead.timeline },
         { label: 'Preapproved', value: lead.preapproved }
       ],
       notes: [
-        lead.mustHaves,
-        lead.niceToHaves,
-        lead.dealBreakers,
+        formatDisplayList(lead.mustHaves),
+        formatDisplayList(lead.niceToHaves),
+        formatDisplayList(lead.dealBreakers),
         lead.motivation,
         lead.notes
-      ].filter(Boolean)
+      ].filter((item) => Boolean(item && item !== '—'))
     };
   }
 
@@ -654,14 +341,13 @@ function crmLeadHoverProfile(lead: CrmLead): LeadHoverProfile {
   };
 }
 
-function statusClass(status: string) {
-  if (status === 'Active') return 'border-green-500 bg-green-500 text-white';
-  if (status === 'Hot') return 'border-red-500 bg-red-500 text-white';
-  if (status === 'Matched') return 'border-purple-500 bg-purple-500 text-white';
-  if (status === 'Prospect') return 'border-orange-500 bg-orange-500 text-white';
-  if (status === 'Stale') return 'border-yellow-400 bg-yellow-400 text-black';
-  if (status === 'Under contract') return 'border-blue-500 bg-blue-500 text-white';
-  return 'border-muted-foreground/40 bg-background text-foreground';
+function statusPillVariant(status: LeadStatus) {
+  if (status === 'Active') return 'active';
+  if (status === 'Hot') return 'hot';
+  if (status === 'Prospect') return 'neutral';
+  if (status === 'Stale') return 'warning';
+  if (status === 'Inactive') return 'neutral';
+  return 'neutral';
 }
 
 function filterAndSortLeads<T extends CrmLead>(leads: T[], sort: SortKey) {
@@ -700,6 +386,244 @@ function fieldValue(formData: FormData, key: string) {
 
 function fieldOrDash(formData: FormData, key: string) {
   return fieldValue(formData, key) || '—';
+}
+
+function parseWorkspaceEnvelope(value: string | null | undefined): WorkspaceNotesEnvelope | null {
+  if (!value?.trim()) return null;
+  try {
+    const parsed = JSON.parse(value) as WorkspaceNotesEnvelope;
+    return parsed.kind === 'brokeros.lead.workspace.v1' ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function cleanDash(value: string | null | undefined) {
+  if (!value || value === '—') return '';
+  return value;
+}
+
+function formatDisplayKey(value: string | null | undefined) {
+  const cleaned = cleanDash(value);
+  return cleaned ? humanizeKey(cleaned) || '—' : '—';
+}
+
+function formatDisplayList(value: string | null | undefined) {
+  const cleaned = cleanDash(value);
+  if (!cleaned) return '—';
+
+  const displayValue = humanizeList(splitList(cleaned)).join(', ');
+  return displayValue || '—';
+}
+
+function numberOrNull(value: string) {
+  const parsed = parseCurrency(value);
+  return parsed > 0 ? Math.round(parsed) : null;
+}
+
+function decimalOrNull(value: string) {
+  const match = value.match(/\d+(\.\d+)?/);
+  if (!match) return null;
+  const parsed = Number(match[0]);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function statusToDb(value: LeadStatus) {
+  if (value === 'Prospect') return 'new';
+  return value.toLowerCase();
+}
+
+function temperatureToDb(value: LeadStatus) {
+  if (value === 'Hot') return 'hot';
+  if (value === 'Stale' || value === 'Inactive') return 'cold';
+  return 'warm';
+}
+
+function workspaceEnvelopeForLead(lead: CrmLead): WorkspaceNotesEnvelope {
+  const base = {
+    kind: 'brokeros.lead.workspace.v1' as const,
+    notes: lead.notes,
+    preferredContactMethod: lead.preferredContactMethod,
+    source: lead.source,
+    assignedAgent: lead.assignedAgent,
+    area: lead.area,
+    lastContact: lead.lastContact,
+    nextFollowUp: lead.nextFollowUp,
+    documents: lead.documents,
+    activity: lead.activity
+  };
+
+  if (lead.type === 'buyer') {
+    return {
+      ...base,
+      buyer: {
+        budgetMin: lead.budgetMin,
+        squareFootageRange: lead.squareFootageRange,
+        timeline: lead.timeline,
+        firstTimeBuyer: lead.firstTimeBuyer,
+        preapproved: lead.preapproved,
+        preapprovalAmount: lead.preapprovalAmount,
+        lender: lead.lender,
+        currentHousingSituation: lead.currentHousingSituation,
+        motivation: lead.motivation
+      }
+    };
+  }
+
+  return {
+    ...base,
+    seller: {
+      targetSaleTimeline: lead.targetSaleTimeline,
+      reasonForSelling: lead.reasonForSelling,
+      expectedListingPrice: lead.expectedListingPrice,
+      agentEstimatedValue: lead.agentEstimatedValue,
+      occupancyStatus: lead.occupancyStatus,
+      hasMortgage: lead.hasMortgage,
+      needsToBuyAfterSelling: lead.needsToBuyAfterSelling,
+      listingAppointmentDate: lead.listingAppointmentDate,
+      sellerUrgency: lead.sellerUrgency
+    }
+  };
+}
+
+function leadPayload(lead: CrmLead) {
+  return {
+    lead: {
+      name: cleanDash(lead.name) || 'Unnamed lead',
+      email: cleanDash(lead.email) || null,
+      phone: cleanDash(lead.phone) || null,
+      lead_type: lead.type,
+      status: statusToDb(lead.status),
+      temperature: temperatureToDb(lead.status),
+      notes_md: JSON.stringify(workspaceEnvelopeForLead(lead))
+    },
+    buyerProfile:
+      lead.type === 'buyer'
+        ? {
+            budget_max: numberOrNull(lead.budgetMax),
+            bedrooms_min: decimalOrNull(lead.bedrooms),
+            bathrooms_min: decimalOrNull(lead.bathrooms),
+            property_type: cleanDash(lead.propertyType) || null,
+            location_primary: lead.preferredAreas[0] ?? cleanDash(lead.area) ?? null,
+            must_haves: splitList(cleanDash(lead.mustHaves)),
+            nice_to_haves: splitList(cleanDash(lead.niceToHaves)),
+            dealbreakers: splitList(cleanDash(lead.dealBreakers)),
+            must_have_keys: [],
+            nice_to_have_keys: [],
+            dealbreaker_keys: [],
+            property_type_key: null
+          }
+        : null,
+    houseProfile:
+      lead.type === 'seller' && lead.houseProfile
+        ? {
+            address: cleanDash(lead.houseProfile.address) || null,
+            town: cleanDash(lead.houseProfile.city) || cleanDash(lead.area) || null,
+            beds: decimalOrNull(lead.houseProfile.bedrooms),
+            baths: decimalOrNull(lead.houseProfile.bathrooms),
+            sqft: numberOrNull(lead.houseProfile.squareFeet),
+            property_type: cleanDash(lead.houseProfile.propertyType) || null,
+            features: [
+              ...splitList(cleanDash(lead.houseProfile.keyFeatures)),
+              ...splitList(cleanDash(lead.houseProfile.upgrades))
+            ],
+            feature_keys: [],
+            property_type_key: null,
+            list_price: numberOrNull(lead.houseProfile.estimatedListingPrice),
+            status: statusToDb(lead.status)
+          }
+        : null
+  };
+}
+
+function formatMoneyFromNumber(value: number | null | undefined) {
+  if (!value) return '—';
+  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(value % 1_000_000 ? 1 : 0)}M`;
+  if (value >= 1_000) return `$${Math.round(value / 1_000)}K`;
+  return `$${value}`;
+}
+
+function brokerHouseProfileToUi(profile: BrokerApiHouseProfile): HouseProfile {
+  return {
+    ...emptyHouseProfile,
+    address: profile.raw.address ?? profile.address,
+    city: profile.raw.town ?? profile.neighborhood,
+    propertyType: profile.raw.property_type ?? '—',
+    estimatedListingPrice: formatMoneyFromNumber(profile.raw.list_price),
+    bedrooms: profile.raw.beds != null ? `${profile.raw.beds}` : '—',
+    bathrooms: profile.raw.baths != null ? `${profile.raw.baths}` : '—',
+    squareFeet: profile.raw.sqft != null ? `${profile.raw.sqft}` : '—',
+    keyFeatures: (profile.raw.features ?? profile.features).join(', ')
+  };
+}
+
+function brokerApiLeadToCrmLead(
+  lead: BrokerApiLead,
+  rank: number,
+  houseProfile?: BrokerApiHouseProfile
+): CrmLead {
+  const envelope = parseWorkspaceEnvelope(lead.raw.notes_md);
+  const status = normalizeLeadStatus(lead.raw.status ?? lead.stage);
+  const base = {
+    id: lead.id,
+    type: lead.leadType,
+    name: lead.name,
+    status,
+    phone: lead.phone || '—',
+    email: lead.email || '—',
+    preferredContactMethod: envelope?.preferredContactMethod ?? '—',
+    source: envelope?.source ?? 'Supabase',
+    assignedAgent: envelope?.assignedAgent ?? lead.assignedAgent ?? 'Unassigned',
+    area: envelope?.area ?? lead.buyerProfile?.location_primary ?? lead.desiredArea ?? '—',
+    lastContact: envelope?.lastContact ?? lead.lastContact,
+    nextFollowUp: envelope?.nextFollowUp ?? '—',
+    documents: envelope?.documents ?? [],
+    activity: envelope?.activity ?? [],
+    notes: envelope?.notes ?? lead.notes.join('\n'),
+    contactRank: rank
+  };
+
+  if (lead.leadType === 'buyer') {
+    const profile = lead.buyerProfile;
+    const buyer = envelope?.buyer;
+    return {
+      ...base,
+      type: 'buyer',
+      budgetMin: buyer?.budgetMin ?? '—',
+      budgetMax: formatMoneyFromNumber(profile?.budget_max) || buyer?.budgetMin || '—',
+      preferredAreas: profile?.location_primary ? [profile.location_primary] : splitList(base.area),
+      bedrooms: profile?.bedrooms_min != null ? `${profile.bedrooms_min}+` : '—',
+      bathrooms: profile?.bathrooms_min != null ? `${profile.bathrooms_min}+` : '—',
+      propertyType: profile?.property_type ?? '—',
+      squareFootageRange: buyer?.squareFootageRange ?? '—',
+      mustHaves: (profile?.must_haves ?? []).join(', ') || '—',
+      niceToHaves: (profile?.nice_to_haves ?? []).join(', ') || '—',
+      dealBreakers: (profile?.dealbreakers ?? []).join(', ') || '—',
+      timeline: buyer?.timeline ?? '—',
+      firstTimeBuyer: buyer?.firstTimeBuyer ?? '—',
+      preapproved: buyer?.preapproved ?? '—',
+      preapprovalAmount: buyer?.preapprovalAmount ?? '—',
+      lender: buyer?.lender ?? '—',
+      currentHousingSituation: buyer?.currentHousingSituation ?? '—',
+      motivation: buyer?.motivation ?? '—'
+    };
+  }
+
+  const seller = envelope?.seller;
+  return {
+    ...base,
+    type: 'seller',
+    targetSaleTimeline: seller?.targetSaleTimeline ?? '—',
+    reasonForSelling: seller?.reasonForSelling ?? '—',
+    expectedListingPrice: seller?.expectedListingPrice ?? '—',
+    agentEstimatedValue: seller?.agentEstimatedValue ?? '—',
+    occupancyStatus: seller?.occupancyStatus ?? '—',
+    hasMortgage: seller?.hasMortgage ?? '—',
+    needsToBuyAfterSelling: seller?.needsToBuyAfterSelling ?? '—',
+    listingAppointmentDate: seller?.listingAppointmentDate ?? '—',
+    sellerUrgency: seller?.sellerUrgency ?? '—',
+    houseProfile: houseProfile ? brokerHouseProfileToUi(houseProfile) : undefined
+  };
 }
 
 function parseCsvLine(line: string) {
@@ -746,7 +670,7 @@ function toBuyerLead(formData: FormData, rank: number): BuyerLead {
     id: makeId('buyer'),
     type: 'buyer',
     name: fieldOrDash(formData, 'name'),
-    status: (fieldValue(formData, 'status') || 'Prospect') as LeadStatus,
+    status: normalizeLeadStatus(fieldValue(formData, 'status')),
     phone: fieldOrDash(formData, 'phone'),
     email: fieldOrDash(formData, 'email'),
     preferredContactMethod: fieldOrDash(formData, 'preferredContactMethod'),
@@ -784,7 +708,7 @@ function toSellerLead(formData: FormData, rank: number): SellerLead {
     id: makeId('seller'),
     type: 'seller',
     name: fieldOrDash(formData, 'name'),
-    status: (fieldValue(formData, 'status') || 'Prospect') as LeadStatus,
+    status: normalizeLeadStatus(fieldValue(formData, 'status')),
     phone: fieldOrDash(formData, 'phone'),
     email: fieldOrDash(formData, 'email'),
     preferredContactMethod: fieldOrDash(formData, 'preferredContactMethod'),
@@ -814,7 +738,7 @@ function editedLeadFromForm(lead: CrmLead, formData: FormData): CrmLead {
   const base = {
     ...lead,
     name: fieldOrDash(formData, 'name'),
-    status: (fieldValue(formData, 'status') || lead.status) as LeadStatus,
+    status: normalizeLeadStatus(fieldValue(formData, 'status') || lead.status),
     phone: fieldOrDash(formData, 'phone'),
     email: fieldOrDash(formData, 'email'),
     preferredContactMethod: fieldOrDash(formData, 'preferredContactMethod'),
@@ -870,7 +794,7 @@ function editedLeadFromForm(lead: CrmLead, formData: FormData): CrmLead {
 
 function csvRowToLead(row: Record<string, string>, rank: number): CrmLead {
   const type = row.type?.toLowerCase() === 'seller' ? 'seller' : 'buyer';
-  const status = (row.status || 'Prospect') as LeadStatus;
+  const status = normalizeLeadStatus(row.status || 'Prospect');
   const base = {
     id: makeId(type),
     name: row.fullName || 'Unnamed lead',
@@ -945,14 +869,53 @@ function publishLocalSearchLeads(leads: CrmLead[]) {
   );
 }
 
-function StatusBadge({ status }: { status: string }) {
+function StatusBadge({
+  status,
+  onStatusChange
+}: {
+  status: LeadStatus;
+  onStatusChange?: (status: LeadStatus) => void;
+}) {
+  if (!onStatusChange) {
+    return (
+      <StatusPill variant={statusPillVariant(status)} dot>
+        {status}
+      </StatusPill>
+    );
+  }
+
   return (
-    <Badge
-      variant='outline'
-      className={cn('font-mono text-[0.62rem] uppercase', statusClass(status))}
-    >
-      {status}
-    </Badge>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <StatusPill
+          asChild
+          variant={statusPillVariant(status)}
+          dot
+          className='cursor-pointer'
+        >
+          <button
+            type='button'
+            aria-label={`Change lead status from ${status}`}
+            onClick={(event) => event.stopPropagation()}
+          >
+            {status}
+            <Icons.chevronDown className='size-3' />
+          </button>
+        </StatusPill>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align='end' className='min-w-36'>
+        <DropdownMenuRadioGroup
+          value={status}
+          onValueChange={(value) => onStatusChange(normalizeLeadStatus(value))}
+        >
+          {statusOptions.map((option) => (
+            <DropdownMenuRadioItem key={option} value={option} className='text-xs'>
+              {option}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -1075,6 +1038,7 @@ interface LeadColumnProps<T extends CrmLead> {
   selectedLeadId?: string;
   onSortChange: (value: SortKey) => void;
   onSelectLead: (lead: T) => void;
+  onStatusChange: (lead: T, status: LeadStatus) => void;
 }
 
 function LeadColumn<T extends CrmLead>({
@@ -1083,7 +1047,8 @@ function LeadColumn<T extends CrmLead>({
   sort,
   selectedLeadId,
   onSortChange,
-  onSelectLead
+  onSelectLead,
+  onStatusChange
 }: LeadColumnProps<T>) {
   return (
     <section className='bg-background min-w-0 border-y md:border-x md:first:border-r-0'>
@@ -1114,12 +1079,18 @@ function LeadColumn<T extends CrmLead>({
             const isSelected = lead.id === selectedLeadId;
 
             return (
-              <button
+              <div
                 key={lead.id}
-                type='button'
+                role='button'
+                tabIndex={0}
                 onClick={() => onSelectLead(lead)}
+                onKeyDown={(event) => {
+                  if (event.key !== 'Enter' && event.key !== ' ') return;
+                  event.preventDefault();
+                  onSelectLead(lead);
+                }}
                 className={cn(
-                  'grid w-full grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3 border-b px-3 py-2.5 text-left text-sm transition-colors',
+                  'grid w-full cursor-pointer grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3 border-b px-3 py-2.5 text-left text-sm transition-colors',
                   'hover:bg-muted/50 focus-visible:ring-ring/35 focus-visible:ring-2 focus-visible:outline-none',
                   isSelected && 'bg-muted/70 shadow-[inset_3px_0_0_var(--primary)]'
                 )}
@@ -1135,8 +1106,11 @@ function LeadColumn<T extends CrmLead>({
                   </span>
                 </span>
                 <span className='font-mono text-xs whitespace-nowrap'>{leadValue(lead)}</span>
-                <StatusBadge status={lead.status} />
-              </button>
+                <StatusBadge
+                  status={lead.status}
+                  onStatusChange={(status) => onStatusChange(lead, status)}
+                />
+              </div>
             );
           })}
         </div>
@@ -1175,7 +1149,7 @@ function HouseProfileBlock({
               label='Address'
               value={`${profile.address}, ${profile.city}, ${profile.state} ${profile.zip}`}
             />
-            <DetailRow label='Property type' value={profile.propertyType} />
+            <DetailRow label='Property type' value={formatDisplayKey(profile.propertyType)} />
             <DetailRow label='Price' value={profile.estimatedListingPrice} />
             <DetailRow label='Beds' value={profile.bedrooms} />
             <DetailRow label='Baths' value={profile.bathrooms} />
@@ -1190,7 +1164,7 @@ function HouseProfileBlock({
             <DetailRow label='Condition' value={profile.condition} />
             <DetailRow label='Occupancy' value={profile.occupancyStatus} />
             <DetailRow label='Showing instructions' value={profile.showingInstructions} />
-            <DetailRow label='Key features' value={profile.keyFeatures} />
+            <DetailRow label='Key features' value={formatDisplayList(profile.keyFeatures)} />
             <DetailRow label='Upgrades' value={profile.upgrades} />
             <DetailRow label='Seller description' value={profile.sellerDescription} />
             <DetailRow label='Agent notes' value={profile.agentNotes} />
@@ -1451,13 +1425,15 @@ function LeadProfilePanel({
   onClose,
   onNoteChange,
   onEditLead,
-  onEditHouseProfile
+  onEditHouseProfile,
+  onStatusChange
 }: {
   lead: CrmLead;
   onClose: () => void;
   onNoteChange: (leadId: string, value: string) => void;
   onEditLead: (lead: CrmLead) => void;
   onEditHouseProfile: (lead: SellerLead) => void;
+  onStatusChange: (lead: CrmLead, status: LeadStatus) => void;
 }) {
   return (
     <aside className='bg-background fixed inset-y-0 right-0 z-50 flex w-[min(100vw,410px)] flex-col border-l lg:static lg:z-auto lg:w-[380px] xl:w-[410px]'>
@@ -1470,7 +1446,10 @@ function LeadProfilePanel({
                   {lead.name}
                 </h2>
               </LeadNameHoverCard>
-              <StatusBadge status={lead.status} />
+              <StatusBadge
+                status={lead.status}
+                onStatusChange={(status) => onStatusChange(lead, status)}
+              />
             </div>
             <p className='text-muted-foreground mt-1 text-xs uppercase'>{lead.type}</p>
           </div>
@@ -1524,11 +1503,11 @@ function LeadProfilePanel({
               <DetailRow label='Preferred areas' value={lead.preferredAreas.join(', ')} />
               <DetailRow label='Bedrooms' value={lead.bedrooms} />
               <DetailRow label='Bathrooms' value={lead.bathrooms} />
-              <DetailRow label='Property type' value={lead.propertyType} />
+              <DetailRow label='Property type' value={formatDisplayKey(lead.propertyType)} />
               <DetailRow label='Square footage' value={lead.squareFootageRange} />
-              <DetailRow label='Must-haves' value={lead.mustHaves} />
-              <DetailRow label='Nice-to-haves' value={lead.niceToHaves} />
-              <DetailRow label='Deal breakers' value={lead.dealBreakers} />
+              <DetailRow label='Must-haves' value={formatDisplayList(lead.mustHaves)} />
+              <DetailRow label='Nice-to-haves' value={formatDisplayList(lead.niceToHaves)} />
+              <DetailRow label='Deal breakers' value={formatDisplayList(lead.dealBreakers)} />
             </PanelSection>
             <PanelSection title='Buying Situation'>
               <DetailRow label='Timeline' value={lead.timeline} />
@@ -1603,7 +1582,7 @@ function AddLeadDialog({
         <DialogHeader className='border-b px-4 py-3'>
           <DialogTitle className='text-base'>Add Lead</DialogTitle>
           <DialogDescription className='text-xs'>
-            Create a buyer or seller lead in this local workspace.
+            Create a buyer or seller lead in BrokerOS.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className='flex min-h-0 flex-1 flex-col overflow-hidden'>
@@ -1888,15 +1867,18 @@ function HouseProfileDialog({
 }
 
 export function LeadsWorkspace() {
-  const [buyerLeads, setBuyerLeads] = useState<BuyerLead[]>(initialBuyerLeads);
-  const [sellerLeads, setSellerLeads] = useState<SellerLead[]>(initialSellerLeads);
+  const [buyerLeads, setBuyerLeads] = useState<BuyerLead[]>([]);
+  const [sellerLeads, setSellerLeads] = useState<SellerLead[]>([]);
   const [buyerSort, setBuyerSort] = useState<SortKey>('recent');
   const [sellerSort, setSellerSort] = useState<SortKey>('recent');
-  const [selectedLeadId, setSelectedLeadId] = useState<string>(initialBuyerLeads[0]?.id ?? '');
+  const [selectedLeadId, setSelectedLeadId] = useState<string>('');
   const [addOpen, setAddOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [leadToEdit, setLeadToEdit] = useState<CrmLead | null>(null);
   const [houseProfileLead, setHouseProfileLead] = useState<SellerLead | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const allLeads = useMemo(() => [...buyerLeads, ...sellerLeads], [buyerLeads, sellerLeads]);
   const selectedLead = allLeads.find((lead) => lead.id === selectedLeadId) ?? null;
@@ -1909,58 +1891,138 @@ export function LeadsWorkspace() {
     [sellerLeads, sellerSort]
   );
 
+  async function loadLeads(preferredSelectedId?: string) {
+    setIsLoading(true);
+    setLoadError(null);
+    try {
+      const response = await fetch('/api/brokeros/leads');
+      if (!response.ok) throw new Error('Unable to load leads');
+      const data = (await response.json()) as BrokerLeadsResponse;
+      const houseBySellerLeadId = new Map(
+        data.houseProfiles.map((profile) => [profile.sellerLeadId, profile])
+      );
+      const crmLeads = data.leads.map((lead, index) =>
+        brokerApiLeadToCrmLead(lead, index, houseBySellerLeadId.get(lead.id))
+      );
+      const buyers = crmLeads.filter((lead): lead is BuyerLead => lead.type === 'buyer');
+      const sellers = crmLeads.filter((lead): lead is SellerLead => lead.type === 'seller');
+
+      setBuyerLeads(buyers);
+      setSellerLeads(sellers);
+      publishLocalSearchLeads(crmLeads);
+      setSelectedLeadId((current) => {
+        if (preferredSelectedId && crmLeads.some((lead) => lead.id === preferredSelectedId)) {
+          return preferredSelectedId;
+        }
+        if (current && crmLeads.some((lead) => lead.id === current)) return current;
+        return crmLeads[0]?.id ?? '';
+      });
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : 'Unable to load leads');
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void loadLeads();
+  }, []);
+
   function selectLead(lead: CrmLead) {
     setSelectedLeadId(lead.id);
   }
 
-  function addLead(lead: CrmLead) {
-    if (lead.type === 'buyer') {
-      setBuyerLeads((current) => [lead, ...current]);
-    } else {
-      setSellerLeads((current) => [lead, ...current]);
+  async function postLead(lead: CrmLead) {
+    setIsSaving(true);
+    try {
+      const response = await fetch('/api/brokeros/leads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(leadPayload(lead))
+      });
+      if (!response.ok) throw new Error('Unable to create lead');
+      const data = (await response.json()) as BrokerLeadResponse;
+      await loadLeads(data.lead.id);
+    } finally {
+      setIsSaving(false);
     }
-    publishLocalSearchLeads([lead]);
-    setSelectedLeadId(lead.id);
+  }
+
+  async function patchLead(lead: CrmLead) {
+    setIsSaving(true);
+    try {
+      const response = await fetch(`/api/brokeros/leads/${lead.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(leadPayload(lead))
+      });
+      if (!response.ok) throw new Error('Unable to update lead');
+      const data = (await response.json()) as BrokerLeadResponse;
+      await loadLeads(data.lead.id);
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  function addLead(lead: CrmLead) {
+    void postLead(lead).catch((error) => {
+      setLoadError(error instanceof Error ? error.message : 'Unable to create lead');
+    });
   }
 
   function importLeads(leads: CrmLead[]) {
-    const buyers = leads.filter((lead): lead is BuyerLead => lead.type === 'buyer');
-    const sellers = leads.filter((lead): lead is SellerLead => lead.type === 'seller');
-    setBuyerLeads((current) => [...buyers, ...current]);
-    setSellerLeads((current) => [...sellers, ...current]);
-    publishLocalSearchLeads(leads);
-    if (leads[0]) setSelectedLeadId(leads[0].id);
+    void Promise.all(leads.map((lead) => postLead(lead)))
+      .then(() => loadLeads())
+      .catch((error) => {
+        setLoadError(error instanceof Error ? error.message : 'Unable to import leads');
+      });
   }
 
   function updateNote(leadId: string, value: string) {
+    const leadToSave = allLeads.find((lead) => lead.id === leadId);
     setBuyerLeads((current) =>
       current.map((lead) => (lead.id === leadId ? { ...lead, notes: value } : lead))
     );
     setSellerLeads((current) =>
       current.map((lead) => (lead.id === leadId ? { ...lead, notes: value } : lead))
     );
+    if (leadToSave) {
+      void patchLead({ ...leadToSave, notes: value }).catch((error) => {
+        setLoadError(error instanceof Error ? error.message : 'Unable to update notes');
+      });
+    }
   }
 
   function saveLead(lead: CrmLead) {
-    if (lead.type === 'buyer') {
-      setBuyerLeads((current) => current.map((item) => (item.id === lead.id ? lead : item)));
-    } else {
-      setSellerLeads((current) => current.map((item) => (item.id === lead.id ? lead : item)));
-    }
-    publishLocalSearchLeads([lead]);
-    setSelectedLeadId(lead.id);
+    void patchLead(lead).catch((error) => {
+      setLoadError(error instanceof Error ? error.message : 'Unable to save lead');
+    });
+  }
+
+  function updateLeadStatus(lead: CrmLead, status: LeadStatus) {
+    const updatedLead = { ...lead, status };
+    saveLead(updatedLead);
   }
 
   function saveHouseProfile(leadId: string, profile: HouseProfile) {
+    const leadToSave = sellerLeads.find((lead) => lead.id === leadId);
     setSellerLeads((current) =>
       current.map((lead) => (lead.id === leadId ? { ...lead, houseProfile: profile } : lead))
     );
     setSelectedLeadId(leadId);
+    if (leadToSave) {
+      void patchLead({ ...leadToSave, houseProfile: profile }).catch((error) => {
+        setLoadError(error instanceof Error ? error.message : 'Unable to save house profile');
+      });
+    }
   }
 
   return (
     <>
       <div className='mb-3 flex justify-end border-b pb-3'>
+        {loadError && (
+          <p className='mr-auto self-center text-xs font-medium text-destructive'>{loadError}</p>
+        )}
         <div className='flex shrink-0 items-center gap-2'>
           <Button variant='outline' size='sm' type='button'>
             <Icons.adjustments />
@@ -1970,7 +2032,7 @@ export function LeadsWorkspace() {
             <Icons.upload />
             Import Leads
           </Button>
-          <Button size='sm' type='button' onClick={() => setAddOpen(true)}>
+          <Button size='sm' type='button' disabled={isSaving} onClick={() => setAddOpen(true)}>
             <Icons.add />
             Add Lead
           </Button>
@@ -1978,30 +2040,48 @@ export function LeadsWorkspace() {
       </div>
 
       <div className='flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row'>
-        <div className='grid min-w-0 flex-1 gap-3 md:grid-cols-2 lg:gap-0'>
-          <LeadColumn
-            title='Buyers'
-            leads={filteredBuyers}
-            sort={buyerSort}
-            selectedLeadId={selectedLead?.id}
-            onSortChange={setBuyerSort}
-            onSelectLead={selectLead}
-          />
-          <LeadColumn
-            title='Sellers'
-            leads={filteredSellers}
-            sort={sellerSort}
-            selectedLeadId={selectedLead?.id}
-            onSortChange={setSellerSort}
-            onSelectLead={selectLead}
-          />
-        </div>
+        {isLoading ? (
+          <div className='grid min-w-0 flex-1 place-items-center border-y text-sm text-muted-foreground'>
+            Loading leads...
+          </div>
+        ) : allLeads.length === 0 ? (
+          <div className='grid min-w-0 flex-1 place-items-center border-y text-center'>
+            <div>
+              <p className='text-sm font-semibold'>No leads yet</p>
+              <p className='mt-1 text-xs text-muted-foreground'>
+                Add or import leads to start filling the workspace.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className='grid min-w-0 flex-1 gap-3 md:grid-cols-2 lg:gap-0'>
+            <LeadColumn
+              title='Buyers'
+              leads={filteredBuyers}
+              sort={buyerSort}
+              selectedLeadId={selectedLead?.id}
+              onSortChange={setBuyerSort}
+              onSelectLead={selectLead}
+              onStatusChange={updateLeadStatus}
+            />
+            <LeadColumn
+              title='Sellers'
+              leads={filteredSellers}
+              sort={sellerSort}
+              selectedLeadId={selectedLead?.id}
+              onSortChange={setSellerSort}
+              onSelectLead={selectLead}
+              onStatusChange={updateLeadStatus}
+            />
+          </div>
+        )}
         {selectedLead && (
           <LeadProfilePanel
             lead={selectedLead}
             onNoteChange={updateNote}
             onEditLead={(lead) => setLeadToEdit(lead)}
             onEditHouseProfile={(lead) => setHouseProfileLead(lead)}
+            onStatusChange={updateLeadStatus}
             onClose={() => setSelectedLeadId('')}
           />
         )}

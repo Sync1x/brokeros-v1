@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Badge } from '@/components/ui/badge';
+import { StatusPill } from '@/components/brokeros/status-pill';
 import {
   Table,
   TableBody,
@@ -9,6 +9,14 @@ import {
   TableRow
 } from '@/components/ui/table';
 import type { Listing, Match } from '@/types/brokeros';
+
+function listingStatusVariant(status: Listing['status']) {
+  if (status === 'Active') return 'active';
+  if (status === 'Coming Soon') return 'warning';
+  if (status === 'Under Review') return 'info';
+  if (status === 'Private') return 'neutral';
+  return 'neutral';
+}
 
 interface ListingTableProps {
   listings: Listing[];
@@ -47,9 +55,9 @@ export function ListingTable({ listings, matches }: ListingTableProps) {
                   {listing.beds} bd / {listing.baths} ba / {listing.sqft} sqft
                 </TableCell>
                 <TableCell>
-                  <Badge variant='outline' className='font-mono text-[0.65rem] uppercase'>
+                  <StatusPill variant={listingStatusVariant(listing.status)}>
                     {listing.status}
-                  </Badge>
+                  </StatusPill>
                 </TableCell>
                 <TableCell className='text-right font-mono text-xs'>{matchedLeads}</TableCell>
               </TableRow>

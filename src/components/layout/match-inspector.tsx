@@ -1,26 +1,55 @@
 'use client';
 
 import Link from 'next/link';
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { brokerLeads, brokerListings, brokerMatches } from '@/constants/brokeros-mock-data';
+import type {
+  BrokerReadModel,
+  BrokerSearchLead
+} from '@/features/brokeros/api/read-model-types';
 import { LeadNameHoverCard } from '@/features/leads/components/lead-name-hover-card';
 import { brokerLeadHoverProfile } from '@/features/leads/utils/lead-hover-profile';
-import type { Lead } from '@/types/brokeros';
+
+const EMPTY_READ_MODEL: BrokerReadModel = {
+  leads: [],
+  listings: [],
+  matches: []
+};
 
 export function MatchInspector() {
   const pathname = usePathname();
   const [, section, id] = pathname.split('/');
+  const [readModel, setReadModel] = useState<BrokerReadModel>(EMPTY_READ_MODEL);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadBrokerData() {
+      try {
+        const response = await fetch('/api/brokeros/read-model');
+        if (!response.ok) throw new Error('Unable to load BrokerOS inspector data');
+        const data = (await response.json()) as BrokerReadModel;
+        if (isMounted) setReadModel(data);
+      } catch {
+        if (isMounted) setReadModel(EMPTY_READ_MODEL);
+      }
+    }
+
+    void loadBrokerData();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   if (!id || (section !== 'leads' && section !== 'listings' && section !== 'matches')) {
     return null;
   }
 
   if (section === 'leads') {
-    const lead = brokerLeads.find((item) => item.id === id);
+    const lead = readModel.leads.find((item) => item.id === id);
     if (!lead) return null;
-    const matches = brokerMatches.filter((match) => match.leadId === lead.id);
+    const matches = readModel.matches.filter((match) => match.leadId === lead.id);
 
     return (
       <InspectorShell
@@ -40,26 +69,33 @@ export function MatchInspector() {
           <InspectorRow label='Contact' value={lead.lastContact} mono />
         </dl>
         <InspectorSection title='Matched Listings'>
-          {matches.map((match) => {
-            const listing = brokerListings.find((item) => item.id === match.listingId)!;
-            return (
-              <RelatedLink
-                key={match.id}
-                href={`/matches/${match.id}`}
-                title={listing.address}
-                meta={`${match.score}% / ${match.nextStep}`}
-              />
-            );
-          })}
+          {matches.length > 0 ? (
+            matches.map((match) => {
+              const listing =
+                match.houseProfile ??
+                readModel.listings.find((item) => item.id === match.listingId);
+              if (!listing) return null;
+              return (
+                <RelatedLink
+                  key={match.id}
+                  href={`/matches/${match.id}`}
+                  title={listing.address}
+                  meta={`${match.score}% / ${match.nextStep}`}
+                />
+              );
+            })
+          ) : (
+            <EmptyRelatedState label='No matched listings yet' />
+          )}
         </InspectorSection>
       </InspectorShell>
     );
   }
 
   if (section === 'listings') {
-    const listing = brokerListings.find((item) => item.id === id);
+    const listing = readModel.listings.find((item) => item.id === id);
     if (!listing) return null;
-    const matches = brokerMatches.filter((match) => match.listingId === listing.id);
+    const matches = readModel.matches.filter((match) => match.listingId === listing.id);
 
     return (
       <InspectorShell eyebrow='Selected Listing' title={listing.address}>
@@ -70,27 +106,35 @@ export function MatchInspector() {
           <InspectorRow label='Status' value={listing.status} mono />
         </dl>
         <InspectorSection title='Matching Leads'>
-          {matches.map((match) => {
-            const lead = brokerLeads.find((item) => item.id === match.leadId)!;
-            return (
-              <RelatedLink
-                key={match.id}
-                href={`/matches/${match.id}`}
-                title={lead.name}
-                meta={`${match.score}% / ${match.nextStep}`}
-                lead={lead}
-              />
-            );
-          })}
+          {matches.length > 0 ? (
+            matches.map((match) => {
+              const lead =
+                match.buyerLead ?? readModel.leads.find((item) => item.id === match.leadId);
+              if (!lead) return null;
+              return (
+                <RelatedLink
+                  key={match.id}
+                  href={`/matches/${match.id}`}
+                  title={lead.name}
+                  meta={`${match.score}% / ${match.nextStep}`}
+                  lead={lead}
+                />
+              );
+            })
+          ) : (
+            <EmptyRelatedState label='No matching leads yet' />
+          )}
         </InspectorSection>
       </InspectorShell>
     );
   }
 
-  const match = brokerMatches.find((item) => item.id === id);
+  const match = readModel.matches.find((item) => item.id === id);
   if (!match) return null;
-  const lead = brokerLeads.find((item) => item.id === match.leadId)!;
-  const listing = brokerListings.find((item) => item.id === match.listingId)!;
+  const lead = match.buyerLead ?? readModel.leads.find((item) => item.id === match.leadId);
+  const listing =
+    match.houseProfile ?? readModel.listings.find((item) => item.id === match.listingId);
+  if (!lead || !listing) return null;
 
   return (
     <InspectorShell
@@ -132,6 +176,10 @@ export function MatchInspector() {
       </div>
     </InspectorShell>
   );
+}
+
+function EmptyRelatedState({ label }: { label: string }) {
+  return <p className='text-muted-foreground py-2 text-xs'>{label}</p>;
 }
 
 function InspectorShell({
@@ -195,7 +243,7 @@ function RelatedLink({
   href: string;
   title: string;
   meta: string;
-  lead?: Lead;
+  lead?: BrokerSearchLead;
 }) {
   return (
     <Link href={href} className='block border-t py-2 first:border-t-0 hover:bg-muted/20'>

@@ -1,80 +1,152 @@
 import Link from 'next/link';
 import PageContainer from '@/components/layout/page-container';
-import { Badge } from '@/components/ui/badge';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
-} from '@/components/ui/table';
-import { brokerLeads, brokerListings, brokerMatches } from '@/constants/brokeros-mock-data';
-import { LeadNameHoverCard } from '@/features/leads/components/lead-name-hover-card';
-import { brokerLeadHoverProfile } from '@/features/leads/utils/lead-hover-profile';
+import { StatusPill } from '@/components/brokeros/status-pill';
+import { listBrokerMatches } from '@/features/brokeros/api/data';
+import { MatchesQueueToolbar } from '@/features/matches/components/matches-queue-toolbar';
+import { Button } from '@/components/ui/button';
+import { Icons } from '@/components/icons';
+import { MINIMUM_PERSISTED_MATCH_SCORE } from '@/lib/matching/scoring-constants';
 
-function scoreClass(score: number) {
-  if (score >= 90) return 'border-brokeros-success/60 text-brokeros-success';
-  if (score >= 80) return 'border-brokeros-warning/60 text-brokeros-warning';
-  return 'border-brokeros-danger/60 text-brokeros-danger';
+function getMatchStatus(score: number) {
+  if (score >= 90) return 'Strong Match';
+  if (score >= 80) return 'Good Match';
+  if (score >= 70) return 'Possible Match';
+  return 'Weak Match';
 }
 
-export default function MatchesPage() {
-  return (
-    <PageContainer
-      pageTitle='Matches'
-      pageDescription='Ranked lead-to-listing pairings with action-ready rationale.'
-    >
-      <div className='bg-background overflow-hidden border-y'>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Match</TableHead>
-              <TableHead>Lead</TableHead>
-              <TableHead>Listing</TableHead>
-              <TableHead>Score</TableHead>
-              <TableHead>Why</TableHead>
-              <TableHead>Next Action</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {brokerMatches.map((match) => {
-              const lead = brokerLeads.find((item) => item.id === match.leadId)!;
-              const listing = brokerListings.find((item) => item.id === match.listingId)!;
+function getMatchStatusVariant(score: number) {
+  if (score >= 90) return 'success';
+  if (score >= 80) return 'info';
+  if (score >= 70) return 'warning';
+  return 'danger';
+}
 
-              return (
-                <TableRow key={match.id}>
-                  <TableCell className='font-mono text-[0.68rem] text-muted-foreground uppercase'>
-                    <Link href={`/matches/${match.id}`} className='hover:text-primary'>
-                      {match.id}
-                    </Link>
-                  </TableCell>
-                  <TableCell>
-                    <LeadNameHoverCard profile={brokerLeadHoverProfile(lead)}>
-                      <Link href={`/leads/${lead.id}`} className='hover:text-primary'>
-                        {lead.name}
-                      </Link>
-                    </LeadNameHoverCard>
-                  </TableCell>
-                  <TableCell>
-                    <Link href={`/listings/${listing.id}`} className='hover:text-primary'>
-                      {listing.address}
-                    </Link>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant='outline' className={`font-mono ${scoreClass(match.score)}`}>
-                      {match.score}%
-                    </Badge>
-                  </TableCell>
-                  <TableCell className='max-w-[320px] truncate text-xs text-muted-foreground'>
-                    {match.rationale}
-                  </TableCell>
-                  <TableCell className='max-w-[280px] truncate text-xs'>{match.nextStep}</TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+function formatCardValue(value: string | number | null | undefined) {
+  if (value == null) return '';
+  const text = String(value).trim();
+  return text && text !== 'Not set' ? text : '';
+}
+
+export default async function MatchesPage() {
+  const matches = await listBrokerMatches();
+  const visibleMatches = matches.filter((match) => match.score >= MINIMUM_PERSISTED_MATCH_SCORE);
+
+  return (
+    <PageContainer pageTitle='Matches' pageHeaderAction={<MatchesQueueToolbar />}>
+      <div className='bg-background rounded-none border-y border-border/80 shadow-xs'>
+        <div className='flex items-center justify-between gap-3 border-b px-3 py-2.5'>
+          <div>
+            <h2 className='text-sm font-semibold'>Match Cards</h2>
+            <p className='text-muted-foreground text-xs'>
+              Reviewable matches grouped by confidence.
+            </p>
+          </div>
+          <StatusPill appearance='score'>{visibleMatches.length} total</StatusPill>
+        </div>
+        <div className='p-4'>
+          {visibleMatches.length > 0 ? (
+            <div className='grid grid-cols-1 justify-items-start gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4'>
+              {visibleMatches.map((match) => {
+                const lead = match.buyerLead;
+                const listing = match.houseProfile;
+                const matchStatus = getMatchStatus(match.score);
+                const location = listing ? formatCardValue(listing.neighborhood) : '';
+                const price = listing ? formatCardValue(listing.price) : '';
+                const profileBits = listing
+                  ? [
+                      listing.beds ? `${listing.beds} bd` : '',
+                      listing.baths ? `${listing.baths} ba` : '',
+                      listing.sqft ? `${listing.sqft} sqft` : ''
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')
+                  : '';
+
+                return (
+                  <article
+                    key={match.id}
+                    className='bg-card flex w-full max-w-[21rem] flex-col overflow-hidden rounded-lg border shadow-sm transition-all duration-150 hover:-translate-y-px hover:border-border/80 hover:shadow-md'
+                  >
+                    <div className='border-b px-4 py-4'>
+                      <div className='mb-3 flex items-start justify-between gap-3'>
+                        <StatusPill appearance='outline' variant={getMatchStatusVariant(match.score)}>
+                          {matchStatus}
+                        </StatusPill>
+                        <StatusPill appearance='score'>{match.score}%</StatusPill>
+                      </div>
+
+                      <div className='space-y-1'>
+                        <p className='text-muted-foreground text-[0.62rem] font-medium tracking-[0.18em] uppercase'>
+                          Buyer
+                        </p>
+                        {lead ? (
+                          <Link
+                            href={`/leads/${lead.id}`}
+                            className='line-clamp-1 text-lg font-bold text-foreground hover:text-primary'
+                          >
+                            {lead.name}
+                          </Link>
+                        ) : (
+                          <span className='text-lg font-bold text-muted-foreground'>
+                            Missing lead
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className='flex flex-1 flex-col gap-3 px-4 py-4'>
+                      <div className='space-y-1'>
+                        <p className='text-muted-foreground text-[0.62rem] font-medium tracking-[0.18em] uppercase'>
+                          Matched with
+                        </p>
+                        {listing ? (
+                          <Link
+                            href={`/listings/${listing.id}`}
+                            className='line-clamp-2 text-base font-semibold text-foreground hover:text-primary'
+                          >
+                            {listing.address}
+                          </Link>
+                        ) : (
+                          <span className='text-base font-semibold text-muted-foreground'>
+                            Missing listing
+                          </span>
+                        )}
+                        {location ? <p className='text-sm text-muted-foreground'>{location}</p> : null}
+                      </div>
+
+                      <div className='space-y-2'>
+                        <div className='flex flex-wrap items-center gap-2 text-sm'>
+                          {price ? (
+                            <span className='font-semibold text-foreground'>{price}</span>
+                          ) : null}
+                          {profileBits ? (
+                            <span className='text-muted-foreground'>{profileBits}</span>
+                          ) : null}
+                        </div>
+                        <p className='text-sm leading-5 text-foreground/90'>{match.nextStep}</p>
+                      </div>
+
+                      <div className='mt-auto pt-1'>
+                        <Button asChild size='sm' className='w-full'>
+                          <Link href={`/matches/${match.id}`}>
+                            Open Match
+                            <Icons.externalLink />
+                          </Link>
+                        </Button>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          ) : (
+            <div className='border-border/60 bg-card rounded-none border px-6 py-10 text-center'>
+              <p className='text-sm font-medium text-foreground'>
+                No reviewable matches yet. Add stronger buyer/listing criteria or refresh matches.
+              </p>
+            </div>
+          )}
+        </div>
       </div>
     </PageContainer>
   );
