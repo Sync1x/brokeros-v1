@@ -20,7 +20,8 @@
     "db:matching:phase1": "bun scripts/runPhase1Matching.ts",
     "db:matching:print": "bun scripts/printTopMatches.ts",
     "db:vocab:canonicalize": "bun scripts/canonicalizePhase2Vocabulary.ts",
-    "db:vocab:check": "bun scripts/checkPhase2Vocabulary.ts"
+    "db:vocab:check": "bun scripts/checkPhase2Vocabulary.ts",
+    "mls:sync:paragon-test": "bun scripts/syncParagonTestListings.ts"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.39.1",

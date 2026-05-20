@@ -32,6 +32,11 @@ export interface Listing {
   owner: string;
   agent: string;
   signal: string;
+  source?: string | null;
+  primaryPhotoUrl?: string | null;
+  mlsListingKey?: string | null;
+  mlsListingId?: string | null;
+  mlsStatus?: string | null;
 }
 
 export interface Match {

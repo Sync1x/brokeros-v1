@@ -12,7 +12,7 @@ export interface BuyerProfileRow {
 
 export interface HouseProfileRow {
   id: string;
-  seller_lead_id: string;
+  seller_lead_id: string | null;
   address: string | null;
   town: string | null;
   beds: number | null;

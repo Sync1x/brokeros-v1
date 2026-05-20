@@ -30,7 +30,7 @@ interface BuyerProfileSelectRow {
 
 interface HouseProfileSelectRow {
   id: string;
-  seller_lead_id: string;
+  seller_lead_id: string | null;
   address: string | null;
   town: string | null;
   beds: number | string | null;
@@ -106,7 +106,8 @@ export async function runMatchingForAllBuyers(client?: SupabaseClient): Promise<
     .from('house_profiles')
     .select(
       'id, seller_lead_id, address, town, beds, baths, sqft, property_type, property_type_key, features, feature_keys, list_price, status, created_at'
-    );
+    )
+    .eq('source', 'paragon_test');
 
   if (houseErr) throw new Error(`Failed to load house_profiles: ${houseErr.message}`);
 

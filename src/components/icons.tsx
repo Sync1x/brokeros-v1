@@ -5,8 +5,10 @@ import {
   IconAlertTriangle,
   IconArrowRight,
   IconBell,
+  IconBath,
   IconBold,
   IconBox,
+  IconBed,
   IconBrandGithub,
   IconBrandTwitter,
   IconBrightness,
@@ -70,6 +72,7 @@ import {
   IconPlus,
   IconRosetteDiscountCheck,
   IconRefresh,
+  IconRulerMeasure,
   IconSearch,
   IconSelector,
   IconSend,
@@ -137,6 +140,11 @@ export const Icons = {
   home: IconHome,
   homeSearch: IconHomeSearch,
   match: IconGitPullRequest,
+
+  // Home stats
+  bed: IconBed,
+  bath: IconBath,
+  sqft: IconRulerMeasure,
 
   // User
   user: IconUsers,
