@@ -19,7 +19,7 @@ export const BROKER_BUYER_PROFILE_FIELDS =
   'lead_id, budget_max, bedrooms_min, bathrooms_min, property_type, location_primary, must_haves, nice_to_haves, dealbreakers, must_have_keys, nice_to_have_keys, dealbreaker_keys, property_type_key' as const;
 
 export const BROKER_HOUSE_PROFILE_FIELDS =
-  'id, seller_lead_id, address, town, beds, baths, sqft, property_type, features, feature_keys, property_type_key, list_price, status, created_at' as const;
+  'id, seller_lead_id, address, town, beds, baths, sqft, property_type, features, feature_keys, property_type_key, list_price, status, created_at, source, mls_provider, mls_dataset_id, mls_listing_key, mls_listing_id, mls_status, mls_modified_at, raw_mls_json, media_json, primary_photo_url, latitude, longitude, state, zip, lot_size_acres, garage_spaces, garage_yn, waterfront_yn, property_sub_type, remarks' as const;
 
 export const BROKER_MATCH_FIELDS =
   'id, buyer_lead_id, house_profile_id, score, score_breakdown_json, created_at' as const;
@@ -56,19 +56,43 @@ export interface BrokerBuyerProfileRow {
 
 export interface BrokerHouseProfileRow {
   id: string;
-  seller_lead_id: string;
+  seller_lead_id: string | null;
   address: string | null;
   town: string | null;
+  state: string | null;
+  zip: string | null;
   beds: number | string | null;
   baths: number | string | null;
   sqft: number | null;
   property_type: string | null;
+  property_sub_type: string | null;
   features: string[] | null;
   feature_keys: string[] | null;
   property_type_key: string | null;
   list_price: number | null;
   status: string | null;
   created_at: string | null;
+  source: string | null;
+  mls_provider: string | null;
+  mls_dataset_id: string | null;
+  mls_listing_key: string | null;
+  mls_listing_id: string | null;
+  mls_status: string | null;
+  mls_modified_at: string | null;
+  raw_mls_json: JsonValue | null;
+  media_json: JsonValue | null;
+  primary_photo_url: string | null;
+  latitude: number | string | null;
+  longitude: number | string | null;
+  lot_size_acres: number | string | null;
+  garage_spaces: number | string | null;
+  garage_yn: boolean | null;
+  waterfront_yn: boolean | null;
+  remarks: string | null;
+}
+
+interface BrokerHouseProfileWithSellerLeadRow extends BrokerHouseProfileRow {
+  seller_lead: BrokerLeadRow | BrokerLeadRow[] | null;
 }
 
 export interface BrokerMatchRow {
@@ -134,7 +158,7 @@ export interface BrokerBuyerProfileMutationPayload {
 }
 
 export interface BrokerHouseProfileMutationPayload {
-  seller_lead_id: string;
+  seller_lead_id?: string | null;
   address?: string | null;
   town?: string | null;
   beds?: number | null;
@@ -335,19 +359,34 @@ export function mapBrokerListing(
     baths: numberValue(row.baths) ?? 0,
     sqft: formatInteger(row.sqft),
     status: mapListingStatus(row.status),
-    owner: sellerLead?.name ?? row.seller_lead_id,
+    owner: sellerLead?.name ?? row.mls_provider ?? row.seller_lead_id ?? 'MLS listing',
     agent: 'Unassigned',
     signal: features.length
       ? features.slice(0, 3).join(', ')
       : propertyType || 'House profile ready',
-    sellerLeadId: row.seller_lead_id,
+    sellerLeadId: row.seller_lead_id ?? '',
     sellerLead,
     createdAt: row.created_at,
     features,
     featureKeys: asArray(row.feature_keys),
     propertyTypeKey: row.property_type_key,
+    source: row.source,
+    primaryPhotoUrl: row.primary_photo_url,
+    mlsListingKey: row.mls_listing_key,
+    mlsListingId: row.mls_listing_id,
+    mlsStatus: row.mls_status,
     raw: row
   };
+}
+
+function mapEmbeddedSellerLead(row: BrokerHouseProfileWithSellerLeadRow) {
+  const sellerLead = Array.isArray(row.seller_lead) ? row.seller_lead[0] : row.seller_lead;
+  return sellerLead ? mapBrokerLead(sellerLead) : null;
+}
+
+function stripEmbeddedSellerLead(row: BrokerHouseProfileWithSellerLeadRow): BrokerHouseProfileRow {
+  const { seller_lead: _sellerLead, ...houseProfile } = row;
+  return houseProfile;
 }
 
 export function mapBrokerMatch(
@@ -414,11 +453,19 @@ async function fetchHouseProfilesByIds(client: SupabaseClient, houseIds: string[
   assertNoSupabaseError(error, 'Failed to load house_profiles');
 
   const rows = (data ?? []) as BrokerHouseProfileRow[];
-  const sellerLeadIds = [...new Set(rows.map((row) => row.seller_lead_id))];
+  const sellerLeadIds = [
+    ...new Set(rows.map((row) => row.seller_lead_id).filter((id): id is string => Boolean(id)))
+  ];
   const sellerLeads = await fetchLeadsByIds(client, sellerLeadIds);
 
   return new Map(
-    rows.map((row) => [row.id, mapBrokerListing(row, sellerLeads.get(row.seller_lead_id) ?? null)])
+    rows.map((row) => [
+      row.id,
+      mapBrokerListing(
+        row,
+        row.seller_lead_id ? (sellerLeads.get(row.seller_lead_id) ?? null) : null
+      )
+    ])
   );
 }
 
@@ -462,15 +509,32 @@ export async function listBrokerHouseProfiles(
 ): Promise<BrokerListingData[]> {
   const { data, error } = await client
     .from('house_profiles')
-    .select(BROKER_HOUSE_PROFILE_FIELDS)
+    .select(
+      `${BROKER_HOUSE_PROFILE_FIELDS}, seller_lead:leads!house_profiles_seller_lead_id_fkey(${BROKER_LEAD_FIELDS})`
+    )
+    .eq('source', 'paragon_test')
     .order('created_at', { ascending: false });
 
   assertNoSupabaseError(error, 'Failed to load house_profiles');
 
-  const rows = (data ?? []) as BrokerHouseProfileRow[];
-  const sellerLeadIds = [...new Set(rows.map((row) => row.seller_lead_id))];
-  const sellerLeads = await fetchLeadsByIds(client, sellerLeadIds);
-  return rows.map((row) => mapBrokerListing(row, sellerLeads.get(row.seller_lead_id) ?? null));
+  const rows = (data ?? []) as BrokerHouseProfileWithSellerLeadRow[];
+  return rows.map((row) =>
+    mapBrokerListing(stripEmbeddedSellerLead(row), mapEmbeddedSellerLead(row))
+  );
+}
+
+export async function listBrokerSellerLeads(
+  client = createServerSupabaseAdmin()
+): Promise<BrokerLeadData[]> {
+  const { data, error } = await client
+    .from('leads')
+    .select(BROKER_LEAD_FIELDS)
+    .eq('lead_type', 'seller')
+    .order('created_at', { ascending: false });
+
+  assertNoSupabaseError(error, 'Failed to load seller leads');
+
+  return ((data ?? []) as BrokerLeadRow[]).map((row) => mapBrokerLead(row));
 }
 
 export async function getBrokerHouseProfileById(
@@ -487,8 +551,13 @@ export async function getBrokerHouseProfileById(
   if (!data) return null;
 
   const row = data as BrokerHouseProfileRow;
-  const sellerLeads = await fetchLeadsByIds(client, [row.seller_lead_id]);
-  return mapBrokerListing(row, sellerLeads.get(row.seller_lead_id) ?? null);
+  const sellerLeads = row.seller_lead_id
+    ? await fetchLeadsByIds(client, [row.seller_lead_id])
+    : new Map<string, BrokerLeadData>();
+  return mapBrokerListing(
+    row,
+    row.seller_lead_id ? (sellerLeads.get(row.seller_lead_id) ?? null) : null
+  );
 }
 
 export async function createBrokerHouseProfile(
@@ -504,8 +573,13 @@ export async function createBrokerHouseProfile(
   assertNoSupabaseError(error, 'Failed to create house_profile');
 
   const row = data as BrokerHouseProfileRow;
-  const sellerLeads = await fetchLeadsByIds(client, [row.seller_lead_id]);
-  return mapBrokerListing(row, sellerLeads.get(row.seller_lead_id) ?? null);
+  const sellerLeads = row.seller_lead_id
+    ? await fetchLeadsByIds(client, [row.seller_lead_id])
+    : new Map<string, BrokerLeadData>();
+  return mapBrokerListing(
+    row,
+    row.seller_lead_id ? (sellerLeads.get(row.seller_lead_id) ?? null) : null
+  );
 }
 
 export async function updateBrokerHouseProfile(
@@ -524,8 +598,13 @@ export async function updateBrokerHouseProfile(
   if (!data) return null;
 
   const row = data as BrokerHouseProfileRow;
-  const sellerLeads = await fetchLeadsByIds(client, [row.seller_lead_id]);
-  return mapBrokerListing(row, sellerLeads.get(row.seller_lead_id) ?? null);
+  const sellerLeads = row.seller_lead_id
+    ? await fetchLeadsByIds(client, [row.seller_lead_id])
+    : new Map<string, BrokerLeadData>();
+  return mapBrokerListing(
+    row,
+    row.seller_lead_id ? (sellerLeads.get(row.seller_lead_id) ?? null) : null
+  );
 }
 
 export async function listBrokerMatches(
@@ -635,6 +714,10 @@ export async function upsertBrokerHouseProfileForSeller(
   payload: BrokerHouseProfileMutationPayload,
   client = createServerSupabaseAdmin()
 ): Promise<BrokerListingData> {
+  if (!payload.seller_lead_id) {
+    throw new Error('seller_lead_id is required to upsert a seller house profile');
+  }
+
   const { data: existing, error: existingError } = await client
     .from('house_profiles')
     .select('id')
@@ -663,6 +746,11 @@ export async function upsertBrokerHouseProfileForSeller(
   );
 
   const row = data as BrokerHouseProfileRow;
-  const sellerLeads = await fetchLeadsByIds(client, [row.seller_lead_id]);
-  return mapBrokerListing(row, sellerLeads.get(row.seller_lead_id) ?? null);
+  const sellerLeads = row.seller_lead_id
+    ? await fetchLeadsByIds(client, [row.seller_lead_id])
+    : new Map<string, BrokerLeadData>();
+  return mapBrokerListing(
+    row,
+    row.seller_lead_id ? (sellerLeads.get(row.seller_lead_id) ?? null) : null
+  );
 }

@@ -1,7 +1,38 @@
 import PageContainer from '@/components/layout/page-container';
+import { Icons } from '@/components/icons';
 import { StatusPill } from '@/components/brokeros/status-pill';
 import { getBrokerHouseProfileById, listBrokerMatches } from '@/features/brokeros/api/data';
 import { notFound } from 'next/navigation';
+
+function ListingStatsRow({
+  beds,
+  baths,
+  sqft
+}: {
+  beds: number;
+  baths: number;
+  sqft: string;
+}) {
+  const stats = [
+    { icon: Icons.bed, label: 'Beds', value: String(beds) },
+    { icon: Icons.bath, label: 'Baths', value: String(baths) },
+    { icon: Icons.sqft, label: 'Sqft', value: sqft }
+  ].filter((stat) => Boolean(stat.value));
+
+  return (
+    <dl className='mt-3 grid gap-0 border-t border-l text-xs sm:grid-cols-3'>
+      {stats.map(({ icon: Icon, label, value }) => (
+        <div key={label} className='flex items-start gap-2 border-r border-b p-2'>
+          <Icon className='text-muted-foreground mt-0.5 size-4 shrink-0' />
+          <div>
+            <dt className='text-muted-foreground font-mono text-[0.65rem] uppercase'>{label}</dt>
+            <dd className='mt-1 font-mono text-xs font-medium'>{value}</dd>
+          </div>
+        </div>
+      ))}
+    </dl>
+  );
+}
 
 function listingStatusVariant(status: string | null | undefined) {
   if (status === 'Active') return 'active';
@@ -54,20 +85,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
               {listing.status}
             </StatusPill>
           </div>
-          <dl className='mt-3 grid border-t border-l text-xs'>
-            <div className='border-r border-b p-2'>
-              <dt className='text-muted-foreground font-mono text-[0.65rem] uppercase'>Beds</dt>
-              <dd className='mt-1 font-mono text-xs font-medium'>{listing.beds}</dd>
-            </div>
-            <div className='border-r border-b p-2'>
-              <dt className='text-muted-foreground font-mono text-[0.65rem] uppercase'>Baths</dt>
-              <dd className='mt-1 font-mono text-xs font-medium'>{listing.baths}</dd>
-            </div>
-            <div className='border-r border-b p-2'>
-              <dt className='text-muted-foreground font-mono text-[0.65rem] uppercase'>Sqft</dt>
-              <dd className='mt-1 font-mono text-xs font-medium'>{listing.sqft}</dd>
-            </div>
-          </dl>
+          <ListingStatsRow beds={listing.beds} baths={listing.baths} sqft={listing.sqft} />
         </div>
 
         <section className='bg-background border-y p-2.5'>
