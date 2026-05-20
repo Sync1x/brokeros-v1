@@ -10,10 +10,11 @@ type HouseProfileRequestBody = Partial<BrokerHouseProfileMutationPayload>;
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const authResult = await requireBrokerosAuth();
   if (authResult.unauthorizedResponse) return authResult.unauthorizedResponse;
+  const scope = { orgId: authResult.orgId, userId: authResult.userId };
 
   const { id } = await params;
   const body = (await request.json()) as HouseProfileRequestBody;
-  const houseProfile = await updateBrokerHouseProfile(id, body);
+  const houseProfile = await updateBrokerHouseProfile(id, body, scope);
 
   if (!houseProfile) {
     return NextResponse.json({ error: 'House profile not found' }, { status: 404 });

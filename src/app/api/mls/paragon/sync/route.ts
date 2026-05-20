@@ -7,7 +7,7 @@ export async function POST() {
   if (authResult.unauthorizedResponse) return authResult.unauthorizedResponse;
 
   try {
-    const result = await syncParagonTestListings();
+    const result = await syncParagonTestListings(authResult.orgId, authResult.userId);
     return NextResponse.json({
       fetched: result.fetched,
       mapped: result.fetched - result.skipped,

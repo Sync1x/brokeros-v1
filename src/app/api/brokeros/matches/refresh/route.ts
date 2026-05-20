@@ -9,7 +9,11 @@ export async function POST() {
   if (authResult.unauthorizedResponse) return authResult.unauthorizedResponse;
 
   try {
-    const result = await runMatchingForAllBuyers(createServerSupabaseAdmin());
+    const result = await runMatchingForAllBuyers({
+      orgId: authResult.orgId,
+      ownerUserId: authResult.userId,
+      client: createServerSupabaseAdmin()
+    });
 
     return NextResponse.json({
       buyersConsidered: result.buyersConsidered,

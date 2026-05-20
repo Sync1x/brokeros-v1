@@ -20,10 +20,11 @@ interface BrokerLeadRequestBody {
 export async function GET() {
   const authResult = await requireBrokerosAuth();
   if (authResult.unauthorizedResponse) return authResult.unauthorizedResponse;
+  const scope = { orgId: authResult.orgId, userId: authResult.userId };
 
   const [leads, houseProfiles] = await Promise.all([
-    listBrokerLeads(),
-    listBrokerHouseProfiles()
+    listBrokerLeads(scope),
+    listBrokerHouseProfiles(scope)
   ]);
   return NextResponse.json({ leads, houseProfiles });
 }
@@ -31,9 +32,10 @@ export async function GET() {
 export async function POST(request: Request) {
   const authResult = await requireBrokerosAuth();
   if (authResult.unauthorizedResponse) return authResult.unauthorizedResponse;
+  const scope = { orgId: authResult.orgId, userId: authResult.userId };
 
   const body = (await request.json()) as BrokerLeadRequestBody;
-  const lead = await createBrokerLead(body.lead);
+  const lead = await createBrokerLead(body.lead, scope);
 
   if (body.lead.lead_type === 'buyer' && body.buyerProfile) {
     await upsertBrokerBuyerProfile({
@@ -46,9 +48,9 @@ export async function POST(request: Request) {
     await upsertBrokerHouseProfileForSeller({
       ...body.houseProfile,
       seller_lead_id: lead.id
-    });
+    }, scope);
   }
 
-  const leads = await listBrokerLeads();
+  const leads = await listBrokerLeads(scope);
   return NextResponse.json({ lead: leads.find((item) => item.id === lead.id) ?? lead }, { status: 201 });
 }

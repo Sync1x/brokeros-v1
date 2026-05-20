@@ -1,8 +1,16 @@
 import { syncParagonTestListings } from '@/features/mls/paragon/sync';
 import { createScriptSupabaseAdmin } from '@/lib/supabase/script-client';
 
+function requiredEnv(name: string) {
+  const value = process.env[name]?.trim();
+  if (!value) throw new Error(`${name} is required for script tenancy scope`);
+  return value;
+}
+
 async function main() {
-  const result = await syncParagonTestListings(createScriptSupabaseAdmin());
+  const userId = requiredEnv('BROKEROS_USER_ID');
+  const orgId = process.env.BROKEROS_ORG_ID?.trim() || `solo:${userId}`;
+  const result = await syncParagonTestListings(orgId, userId, createScriptSupabaseAdmin());
 
   console.log(`Dataset: ${result.datasetId}`);
   console.log(`Fetched: ${result.fetched}`);

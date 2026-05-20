@@ -4,10 +4,12 @@ import { NextResponse } from 'next/server';
 type BrokerosAuthResult =
   | {
       userId: string;
+      orgId: string;
       unauthorizedResponse?: never;
     }
   | {
       userId?: never;
+      orgId?: never;
       unauthorizedResponse: NextResponse<{ error: string }>;
     };
 
@@ -17,13 +19,13 @@ function unauthorizedResponse() {
 
 export async function requireBrokerosAuth(): Promise<BrokerosAuthResult> {
   try {
-    const { userId } = await auth();
+    const { userId, orgId } = await auth();
 
     if (!userId) {
       return { unauthorizedResponse: unauthorizedResponse() };
     }
 
-    return { userId };
+    return { userId, orgId: orgId ?? `solo:${userId}` };
   } catch {
     return { unauthorizedResponse: unauthorizedResponse() };
   }
