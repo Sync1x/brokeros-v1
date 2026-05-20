@@ -19,12 +19,18 @@ interface BrokerLeadRequestBody {
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const authResult = await requireBrokerosAuth();
   if (authResult.unauthorizedResponse) return authResult.unauthorizedResponse;
+  const scope = { orgId: authResult.orgId, userId: authResult.userId };
 
   const { id } = await params;
   const body = (await request.json()) as BrokerLeadRequestBody;
+  const existingLead = await getBrokerLeadById(id, scope);
+
+  if (!existingLead) {
+    return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
+  }
 
   if (body.lead) {
-    await updateBrokerLead(id, body.lead);
+    await updateBrokerLead(id, body.lead, scope);
   }
 
   if (body.buyerProfile) {
@@ -38,13 +44,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     await upsertBrokerHouseProfileForSeller({
       ...body.houseProfile,
       seller_lead_id: id
-    });
+    }, scope);
   }
 
-  const lead = await getBrokerLeadById(id);
-  if (!lead) {
-    return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
-  }
-
+  const lead = await getBrokerLeadById(id, scope);
   return NextResponse.json({ lead });
 }

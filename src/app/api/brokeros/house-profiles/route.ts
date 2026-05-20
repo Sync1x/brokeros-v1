@@ -5,10 +5,11 @@ import { NextResponse } from 'next/server';
 export async function GET() {
   const authResult = await requireBrokerosAuth();
   if (authResult.unauthorizedResponse) return authResult.unauthorizedResponse;
+  const scope = { orgId: authResult.orgId, userId: authResult.userId };
 
   const [houseProfiles, sellerLeads] = await Promise.all([
-    listBrokerHouseProfiles(),
-    listBrokerSellerLeads()
+    listBrokerHouseProfiles(scope),
+    listBrokerSellerLeads(scope)
   ]);
 
   return NextResponse.json({ houseProfiles, sellerLeads });

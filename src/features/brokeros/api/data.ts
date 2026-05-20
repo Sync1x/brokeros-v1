@@ -1,5 +1,6 @@
 import 'server-only';
 
+import { auth } from '@clerk/nextjs/server';
 import { createServerSupabaseAdmin } from '@/lib/supabase/server-client';
 import { humanizeKey, humanizeList } from '@/lib/vocabulary/display';
 import type {
@@ -13,16 +14,16 @@ import type {
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 export const BROKER_LEAD_FIELDS =
-  'id, name, email, phone, lead_type, status, temperature, notes_md, created_at' as const;
+  'id, name, email, phone, lead_type, status, temperature, notes_md, created_at, org_id, owner_user_id' as const;
 
 export const BROKER_BUYER_PROFILE_FIELDS =
   'lead_id, budget_max, bedrooms_min, bathrooms_min, property_type, location_primary, must_haves, nice_to_haves, dealbreakers, must_have_keys, nice_to_have_keys, dealbreaker_keys, property_type_key' as const;
 
 export const BROKER_HOUSE_PROFILE_FIELDS =
-  'id, seller_lead_id, address, town, beds, baths, sqft, property_type, features, feature_keys, property_type_key, list_price, status, created_at, source, mls_provider, mls_dataset_id, mls_listing_key, mls_listing_id, mls_status, mls_modified_at, raw_mls_json, media_json, primary_photo_url, latitude, longitude, state, zip, lot_size_acres, garage_spaces, garage_yn, waterfront_yn, property_sub_type, remarks' as const;
+  'id, seller_lead_id, address, town, beds, baths, sqft, property_type, features, feature_keys, property_type_key, list_price, status, created_at, source, mls_provider, mls_dataset_id, mls_listing_key, mls_listing_id, mls_status, mls_modified_at, raw_mls_json, media_json, primary_photo_url, latitude, longitude, state, zip, lot_size_acres, garage_spaces, garage_yn, waterfront_yn, property_sub_type, remarks, org_id' as const;
 
 export const BROKER_MATCH_FIELDS =
-  'id, buyer_lead_id, house_profile_id, score, score_breakdown_json, created_at' as const;
+  'id, buyer_lead_id, house_profile_id, score, score_breakdown_json, created_at, org_id, owner_user_id' as const;
 
 type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 
@@ -36,6 +37,8 @@ export interface BrokerLeadRow {
   temperature: 'hot' | 'warm' | 'cold' | null;
   notes_md: string | null;
   created_at: string | null;
+  org_id: string | null;
+  owner_user_id: string | null;
 }
 
 export interface BrokerBuyerProfileRow {
@@ -89,10 +92,7 @@ export interface BrokerHouseProfileRow {
   garage_yn: boolean | null;
   waterfront_yn: boolean | null;
   remarks: string | null;
-}
-
-interface BrokerHouseProfileWithSellerLeadRow extends BrokerHouseProfileRow {
-  seller_lead: BrokerLeadRow | BrokerLeadRow[] | null;
+  org_id: string | null;
 }
 
 export interface BrokerMatchRow {
@@ -102,6 +102,13 @@ export interface BrokerMatchRow {
   score: number | string;
   score_breakdown_json: JsonValue | null;
   created_at: string | null;
+  org_id: string | null;
+  owner_user_id: string | null;
+}
+
+export interface BrokerosDataScope {
+  userId: string;
+  orgId: string;
 }
 
 export interface BrokerLeadData extends Lead {
@@ -174,6 +181,14 @@ export interface BrokerHouseProfileMutationPayload {
 
 function assertNoSupabaseError(error: { message: string } | null, context: string) {
   if (error) throw new Error(`${context}: ${error.message}`);
+}
+
+async function resolveBrokerosDataScope(scope?: BrokerosDataScope): Promise<BrokerosDataScope> {
+  if (scope) return scope;
+
+  const { userId, orgId } = await auth();
+  if (!userId) throw new Error('BrokerOS auth is required');
+  return { userId, orgId: orgId ?? `solo:${userId}` };
 }
 
 function asArray(value: string[] | null | undefined) {
@@ -379,16 +394,6 @@ export function mapBrokerListing(
   };
 }
 
-function mapEmbeddedSellerLead(row: BrokerHouseProfileWithSellerLeadRow) {
-  const sellerLead = Array.isArray(row.seller_lead) ? row.seller_lead[0] : row.seller_lead;
-  return sellerLead ? mapBrokerLead(sellerLead) : null;
-}
-
-function stripEmbeddedSellerLead(row: BrokerHouseProfileWithSellerLeadRow): BrokerHouseProfileRow {
-  const { seller_lead: _sellerLead, ...houseProfile } = row;
-  return houseProfile;
-}
-
 export function mapBrokerMatch(
   row: BrokerMatchRow,
   buyerLead: BrokerLeadData | null = null,
@@ -427,10 +432,15 @@ async function fetchBuyerProfiles(client: SupabaseClient, leadIds: string[]) {
   return new Map((data ?? []).map((row) => [row.lead_id as string, row as BrokerBuyerProfileRow]));
 }
 
-async function fetchLeadsByIds(client: SupabaseClient, leadIds: string[]) {
+async function fetchLeadsByIds(client: SupabaseClient, leadIds: string[], scope: BrokerosDataScope) {
   if (!leadIds.length) return new Map<string, BrokerLeadData>();
 
-  const { data, error } = await client.from('leads').select(BROKER_LEAD_FIELDS).in('id', leadIds);
+  const { data, error } = await client
+    .from('leads')
+    .select(BROKER_LEAD_FIELDS)
+    .eq('org_id', scope.orgId)
+    .eq('owner_user_id', scope.userId)
+    .in('id', leadIds);
   assertNoSupabaseError(error, 'Failed to load leads');
 
   const rows = (data ?? []) as BrokerLeadRow[];
@@ -442,12 +452,17 @@ async function fetchLeadsByIds(client: SupabaseClient, leadIds: string[]) {
   );
 }
 
-async function fetchHouseProfilesByIds(client: SupabaseClient, houseIds: string[]) {
+async function fetchHouseProfilesByIds(
+  client: SupabaseClient,
+  houseIds: string[],
+  scope: BrokerosDataScope
+) {
   if (!houseIds.length) return new Map<string, BrokerListingData>();
 
   const { data, error } = await client
     .from('house_profiles')
     .select(BROKER_HOUSE_PROFILE_FIELDS)
+    .eq('org_id', scope.orgId)
     .in('id', houseIds);
 
   assertNoSupabaseError(error, 'Failed to load house_profiles');
@@ -456,7 +471,7 @@ async function fetchHouseProfilesByIds(client: SupabaseClient, houseIds: string[
   const sellerLeadIds = [
     ...new Set(rows.map((row) => row.seller_lead_id).filter((id): id is string => Boolean(id)))
   ];
-  const sellerLeads = await fetchLeadsByIds(client, sellerLeadIds);
+  const sellerLeads = await fetchLeadsByIds(client, sellerLeadIds, scope);
 
   return new Map(
     rows.map((row) => [
@@ -470,11 +485,15 @@ async function fetchHouseProfilesByIds(client: SupabaseClient, houseIds: string[
 }
 
 export async function listBrokerLeads(
+  scope?: BrokerosDataScope,
   client = createServerSupabaseAdmin()
 ): Promise<BrokerLeadData[]> {
+  const resolvedScope = await resolveBrokerosDataScope(scope);
   const { data, error } = await client
     .from('leads')
     .select(BROKER_LEAD_FIELDS)
+    .eq('org_id', resolvedScope.orgId)
+    .eq('owner_user_id', resolvedScope.userId)
     .order('created_at', { ascending: false });
 
   assertNoSupabaseError(error, 'Failed to load leads');
@@ -487,11 +506,15 @@ export async function listBrokerLeads(
 
 export async function getBrokerLeadById(
   id: string,
+  scope?: BrokerosDataScope,
   client = createServerSupabaseAdmin()
 ): Promise<BrokerLeadData | null> {
+  const resolvedScope = await resolveBrokerosDataScope(scope);
   const { data, error } = await client
     .from('leads')
     .select(BROKER_LEAD_FIELDS)
+    .eq('org_id', resolvedScope.orgId)
+    .eq('owner_user_id', resolvedScope.userId)
     .eq('id', id)
     .maybeSingle();
 
@@ -505,30 +528,43 @@ export async function getBrokerLeadById(
 }
 
 export async function listBrokerHouseProfiles(
+  scope?: BrokerosDataScope,
   client = createServerSupabaseAdmin()
 ): Promise<BrokerListingData[]> {
+  const resolvedScope = await resolveBrokerosDataScope(scope);
   const { data, error } = await client
     .from('house_profiles')
-    .select(
-      `${BROKER_HOUSE_PROFILE_FIELDS}, seller_lead:leads!house_profiles_seller_lead_id_fkey(${BROKER_LEAD_FIELDS})`
-    )
+    .select(BROKER_HOUSE_PROFILE_FIELDS)
+    .eq('org_id', resolvedScope.orgId)
     .eq('source', 'paragon_test')
     .order('created_at', { ascending: false });
 
   assertNoSupabaseError(error, 'Failed to load house_profiles');
 
-  const rows = (data ?? []) as BrokerHouseProfileWithSellerLeadRow[];
+  const rows = (data ?? []) as BrokerHouseProfileRow[];
+  const sellerLeadIds = [
+    ...new Set(rows.map((row) => row.seller_lead_id).filter((id): id is string => Boolean(id)))
+  ];
+  const sellerLeads = await fetchLeadsByIds(client, sellerLeadIds, resolvedScope);
+
   return rows.map((row) =>
-    mapBrokerListing(stripEmbeddedSellerLead(row), mapEmbeddedSellerLead(row))
+    mapBrokerListing(
+      row,
+      row.seller_lead_id ? (sellerLeads.get(row.seller_lead_id) ?? null) : null
+    )
   );
 }
 
 export async function listBrokerSellerLeads(
+  scope?: BrokerosDataScope,
   client = createServerSupabaseAdmin()
 ): Promise<BrokerLeadData[]> {
+  const resolvedScope = await resolveBrokerosDataScope(scope);
   const { data, error } = await client
     .from('leads')
     .select(BROKER_LEAD_FIELDS)
+    .eq('org_id', resolvedScope.orgId)
+    .eq('owner_user_id', resolvedScope.userId)
     .eq('lead_type', 'seller')
     .order('created_at', { ascending: false });
 
@@ -539,11 +575,14 @@ export async function listBrokerSellerLeads(
 
 export async function getBrokerHouseProfileById(
   id: string,
+  scope?: BrokerosDataScope,
   client = createServerSupabaseAdmin()
 ): Promise<BrokerListingData | null> {
+  const resolvedScope = await resolveBrokerosDataScope(scope);
   const { data, error } = await client
     .from('house_profiles')
     .select(BROKER_HOUSE_PROFILE_FIELDS)
+    .eq('org_id', resolvedScope.orgId)
     .eq('id', id)
     .maybeSingle();
 
@@ -552,7 +591,7 @@ export async function getBrokerHouseProfileById(
 
   const row = data as BrokerHouseProfileRow;
   const sellerLeads = row.seller_lead_id
-    ? await fetchLeadsByIds(client, [row.seller_lead_id])
+    ? await fetchLeadsByIds(client, [row.seller_lead_id], resolvedScope)
     : new Map<string, BrokerLeadData>();
   return mapBrokerListing(
     row,
@@ -562,11 +601,13 @@ export async function getBrokerHouseProfileById(
 
 export async function createBrokerHouseProfile(
   payload: BrokerHouseProfileMutationPayload,
+  scope?: BrokerosDataScope,
   client = createServerSupabaseAdmin()
 ): Promise<BrokerListingData> {
+  const resolvedScope = await resolveBrokerosDataScope(scope);
   const { data, error } = await client
     .from('house_profiles')
-    .insert(payload)
+    .insert({ ...payload, org_id: resolvedScope.orgId })
     .select(BROKER_HOUSE_PROFILE_FIELDS)
     .single();
 
@@ -574,7 +615,7 @@ export async function createBrokerHouseProfile(
 
   const row = data as BrokerHouseProfileRow;
   const sellerLeads = row.seller_lead_id
-    ? await fetchLeadsByIds(client, [row.seller_lead_id])
+    ? await fetchLeadsByIds(client, [row.seller_lead_id], resolvedScope)
     : new Map<string, BrokerLeadData>();
   return mapBrokerListing(
     row,
@@ -585,11 +626,14 @@ export async function createBrokerHouseProfile(
 export async function updateBrokerHouseProfile(
   id: string,
   payload: Partial<BrokerHouseProfileMutationPayload>,
+  scope?: BrokerosDataScope,
   client = createServerSupabaseAdmin()
 ): Promise<BrokerListingData | null> {
+  const resolvedScope = await resolveBrokerosDataScope(scope);
   const { data, error } = await client
     .from('house_profiles')
     .update(payload)
+    .eq('org_id', resolvedScope.orgId)
     .eq('id', id)
     .select(BROKER_HOUSE_PROFILE_FIELDS)
     .maybeSingle();
@@ -599,7 +643,7 @@ export async function updateBrokerHouseProfile(
 
   const row = data as BrokerHouseProfileRow;
   const sellerLeads = row.seller_lead_id
-    ? await fetchLeadsByIds(client, [row.seller_lead_id])
+    ? await fetchLeadsByIds(client, [row.seller_lead_id], resolvedScope)
     : new Map<string, BrokerLeadData>();
   return mapBrokerListing(
     row,
@@ -608,11 +652,15 @@ export async function updateBrokerHouseProfile(
 }
 
 export async function listBrokerMatches(
+  scope?: BrokerosDataScope,
   client = createServerSupabaseAdmin()
 ): Promise<BrokerMatchData[]> {
+  const resolvedScope = await resolveBrokerosDataScope(scope);
   const { data, error } = await client
     .from('matches')
     .select(BROKER_MATCH_FIELDS)
+    .eq('org_id', resolvedScope.orgId)
+    .eq('owner_user_id', resolvedScope.userId)
     .order('score', { ascending: false })
     .order('created_at', { ascending: false });
 
@@ -622,8 +670,8 @@ export async function listBrokerMatches(
   const buyerLeadIds = [...new Set(rows.map((row) => row.buyer_lead_id))];
   const houseProfileIds = [...new Set(rows.map((row) => row.house_profile_id))];
   const [buyerLeads, houseProfiles] = await Promise.all([
-    fetchLeadsByIds(client, buyerLeadIds),
-    fetchHouseProfilesByIds(client, houseProfileIds)
+    fetchLeadsByIds(client, buyerLeadIds, resolvedScope),
+    fetchHouseProfilesByIds(client, houseProfileIds, resolvedScope)
   ]);
 
   return rows.map((row) =>
@@ -637,11 +685,15 @@ export async function listBrokerMatches(
 
 export async function getBrokerMatchById(
   id: string,
+  scope?: BrokerosDataScope,
   client = createServerSupabaseAdmin()
 ): Promise<BrokerMatchData | null> {
+  const resolvedScope = await resolveBrokerosDataScope(scope);
   const { data, error } = await client
     .from('matches')
     .select(BROKER_MATCH_FIELDS)
+    .eq('org_id', resolvedScope.orgId)
+    .eq('owner_user_id', resolvedScope.userId)
     .eq('id', id)
     .maybeSingle();
 
@@ -650,8 +702,8 @@ export async function getBrokerMatchById(
 
   const row = data as BrokerMatchRow;
   const [buyerLeads, houseProfiles] = await Promise.all([
-    fetchLeadsByIds(client, [row.buyer_lead_id]),
-    fetchHouseProfilesByIds(client, [row.house_profile_id])
+    fetchLeadsByIds(client, [row.buyer_lead_id], resolvedScope),
+    fetchHouseProfilesByIds(client, [row.house_profile_id], resolvedScope)
   ]);
 
   return mapBrokerMatch(
@@ -663,11 +715,17 @@ export async function getBrokerMatchById(
 
 export async function createBrokerLead(
   payload: BrokerLeadMutationPayload,
+  scope?: BrokerosDataScope,
   client = createServerSupabaseAdmin()
 ): Promise<BrokerLeadData> {
+  const resolvedScope = await resolveBrokerosDataScope(scope);
   const { data, error } = await client
     .from('leads')
-    .insert(payload)
+    .insert({
+      ...payload,
+      org_id: resolvedScope.orgId,
+      owner_user_id: resolvedScope.userId
+    })
     .select(BROKER_LEAD_FIELDS)
     .single();
 
@@ -679,11 +737,15 @@ export async function createBrokerLead(
 export async function updateBrokerLead(
   id: string,
   payload: Partial<BrokerLeadMutationPayload>,
+  scope?: BrokerosDataScope,
   client = createServerSupabaseAdmin()
 ): Promise<BrokerLeadData | null> {
+  const resolvedScope = await resolveBrokerosDataScope(scope);
   const { data, error } = await client
     .from('leads')
     .update(payload)
+    .eq('org_id', resolvedScope.orgId)
+    .eq('owner_user_id', resolvedScope.userId)
     .eq('id', id)
     .select(BROKER_LEAD_FIELDS)
     .maybeSingle();
@@ -712,8 +774,10 @@ export async function upsertBrokerBuyerProfile(
 
 export async function upsertBrokerHouseProfileForSeller(
   payload: BrokerHouseProfileMutationPayload,
+  scope?: BrokerosDataScope,
   client = createServerSupabaseAdmin()
 ): Promise<BrokerListingData> {
+  const resolvedScope = await resolveBrokerosDataScope(scope);
   if (!payload.seller_lead_id) {
     throw new Error('seller_lead_id is required to upsert a seller house profile');
   }
@@ -721,6 +785,7 @@ export async function upsertBrokerHouseProfileForSeller(
   const { data: existing, error: existingError } = await client
     .from('house_profiles')
     .select('id')
+    .eq('org_id', resolvedScope.orgId)
     .eq('seller_lead_id', payload.seller_lead_id)
     .limit(1)
     .maybeSingle();
@@ -734,10 +799,15 @@ export async function upsertBrokerHouseProfileForSeller(
     ? client
         .from('house_profiles')
         .update(payload)
+        .eq('org_id', resolvedScope.orgId)
         .eq('id', existing.id)
         .select(BROKER_HOUSE_PROFILE_FIELDS)
         .single()
-    : client.from('house_profiles').insert(payload).select(BROKER_HOUSE_PROFILE_FIELDS).single();
+    : client
+        .from('house_profiles')
+        .insert({ ...payload, org_id: resolvedScope.orgId })
+        .select(BROKER_HOUSE_PROFILE_FIELDS)
+        .single();
 
   const { data, error } = await query;
   assertNoSupabaseError(
@@ -747,7 +817,7 @@ export async function upsertBrokerHouseProfileForSeller(
 
   const row = data as BrokerHouseProfileRow;
   const sellerLeads = row.seller_lead_id
-    ? await fetchLeadsByIds(client, [row.seller_lead_id])
+    ? await fetchLeadsByIds(client, [row.seller_lead_id], resolvedScope)
     : new Map<string, BrokerLeadData>();
   return mapBrokerListing(
     row,

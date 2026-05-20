@@ -12,6 +12,12 @@ export interface RunMatchingResult {
   upsertRows: number;
 }
 
+export interface RunMatchingForAllBuyersOptions {
+  orgId: string;
+  ownerUserId: string;
+  client?: SupabaseClient;
+}
+
 interface BuyerProfileSelectRow {
   lead_id: string;
   budget_max: number | null;
@@ -60,16 +66,19 @@ function numberOrNull(value: number | string | null): number | null {
 }
 
 /**
- * Loads buyer leads + profiles, all house profiles, and town adjacency; scores every pair;
- * upserts qualifying rows into public.matches on (buyer_lead_id, house_profile_id).
+ * Scores one agent's buyer leads against shared org Paragon listings.
  */
-export async function runMatchingForAllBuyers(client?: SupabaseClient): Promise<RunMatchingResult> {
+export async function runMatchingForAllBuyers(
+  options: RunMatchingForAllBuyersOptions
+): Promise<RunMatchingResult> {
   const supabase =
-    client ?? (await import('@/lib/supabase/script-client')).createScriptSupabaseAdmin();
+    options.client ?? (await import('@/lib/supabase/script-client')).createScriptSupabaseAdmin();
 
   const { error: deleteWeakErr } = await supabase
     .from('matches')
     .delete()
+    .eq('org_id', options.orgId)
+    .eq('owner_user_id', options.ownerUserId)
     .lt('score', MINIMUM_PERSISTED_MATCH_SCORE);
 
   if (deleteWeakErr) throw new Error(`Failed to delete weak matches: ${deleteWeakErr.message}`);
@@ -77,6 +86,8 @@ export async function runMatchingForAllBuyers(client?: SupabaseClient): Promise<
   const { data: buyerLeads, error: buyerLeadErr } = await supabase
     .from('leads')
     .select('id')
+    .eq('org_id', options.orgId)
+    .eq('owner_user_id', options.ownerUserId)
     .eq('lead_type', 'buyer');
 
   if (buyerLeadErr) throw new Error(`Failed to load buyer leads: ${buyerLeadErr.message}`);
@@ -107,6 +118,7 @@ export async function runMatchingForAllBuyers(client?: SupabaseClient): Promise<
     .select(
       'id, seller_lead_id, address, town, beds, baths, sqft, property_type, property_type_key, features, feature_keys, list_price, status, created_at'
     )
+    .eq('org_id', options.orgId)
     .eq('source', 'paragon_test');
 
   if (houseErr) throw new Error(`Failed to load house_profiles: ${houseErr.message}`);
@@ -151,6 +163,8 @@ export async function runMatchingForAllBuyers(client?: SupabaseClient): Promise<
   const payload: {
     buyer_lead_id: string;
     house_profile_id: string;
+    org_id: string;
+    owner_user_id: string;
     score: number;
     score_breakdown_json: Record<string, unknown>;
   }[] = [];
@@ -173,6 +187,8 @@ export async function runMatchingForAllBuyers(client?: SupabaseClient): Promise<
       payload.push({
         buyer_lead_id: leadId,
         house_profile_id: house.id,
+        org_id: options.orgId,
+        owner_user_id: options.ownerUserId,
         score,
         score_breakdown_json: breakdown as unknown as Record<string, unknown>
       });

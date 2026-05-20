@@ -36,8 +36,9 @@ async function loadVocabulary(client: SupabaseClient) {
   };
 }
 
-function upsertPayload(row: MappedParagonHouseProfile) {
+function upsertPayload(row: MappedParagonHouseProfile, orgId: string) {
   return {
+    org_id: orgId,
     source: row.source,
     mls_provider: row.mls_provider,
     mls_dataset_id: row.mls_dataset_id,
@@ -73,6 +74,8 @@ function upsertPayload(row: MappedParagonHouseProfile) {
 }
 
 export async function syncParagonTestListings(
+  orgId: string,
+  ownerUserId?: string,
   client?: SupabaseClient
 ): Promise<SyncParagonTestListingsResult> {
   const supabase =
@@ -93,8 +96,8 @@ export async function syncParagonTestListings(
   if (mapped.length) {
     const { error, count } = await supabase
       .from('house_profiles')
-      .upsert(mapped.map(upsertPayload), {
-        onConflict: 'mls_provider,mls_dataset_id,mls_listing_key',
+      .upsert(mapped.map((row) => upsertPayload(row, orgId)), {
+        onConflict: 'org_id,mls_provider,mls_dataset_id,mls_listing_key',
         count: 'exact'
       })
       .select('id');
@@ -107,7 +110,9 @@ export async function syncParagonTestListings(
     upserted = count ?? mapped.length;
   }
 
-  const matching = await runMatchingForAllBuyers(supabase);
+  const matching = ownerUserId
+    ? await runMatchingForAllBuyers({ orgId, ownerUserId, client: supabase })
+    : null;
 
   return {
     datasetId,

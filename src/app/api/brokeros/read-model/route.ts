@@ -10,10 +10,11 @@ export async function GET() {
   const authResult = await requireBrokerosAuth();
   if (authResult.unauthorizedResponse) return authResult.unauthorizedResponse;
 
+  const scope = { orgId: authResult.orgId, userId: authResult.userId };
   const [leads, listings, matches] = await Promise.all([
-    listBrokerLeads(),
-    listBrokerHouseProfiles(),
-    listBrokerMatches()
+    listBrokerLeads(scope),
+    listBrokerHouseProfiles(scope),
+    listBrokerMatches(scope)
   ]);
 
   return NextResponse.json({ leads, listings, matches });

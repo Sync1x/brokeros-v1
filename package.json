@@ -21,6 +21,7 @@
     "db:matching:print": "bun scripts/printTopMatches.ts",
     "db:vocab:canonicalize": "bun scripts/canonicalizePhase2Vocabulary.ts",
     "db:vocab:check": "bun scripts/checkPhase2Vocabulary.ts",
+    "db:seed:paragon-buyers": "bun scripts/seedParagonTestBuyerLeads.ts",
     "mls:sync:paragon-test": "bun scripts/syncParagonTestListings.ts"
   },
   "dependencies": {
