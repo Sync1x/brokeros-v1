@@ -1,5 +1,6 @@
 import PageContainer from '@/components/layout/page-container';
 import { SettingsConnectorsSection } from '@/features/settings/components/settings-connectors-section';
+import { SettingsOrganizationsButton } from '@/features/settings/components/settings-organizations-button';
 
 const settings = ['Brokerage profile', 'Agent permissions', 'Notification cadence', 'Data sources'];
 
@@ -8,6 +9,7 @@ export default function SettingsPage() {
     <PageContainer
       pageTitle='Settings'
       pageDescription='BrokerOS configuration, currently backed by local mock state.'
+      pageHeaderAction={<SettingsOrganizationsButton />}
     >
       <div className='mb-8'>
         <SettingsConnectorsSection />
