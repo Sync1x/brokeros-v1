@@ -20,7 +20,7 @@ export interface ParagonMapperVocabulary {
 
 export interface MappedParagonHouseProfile {
   source: 'paragon_test';
-  mls_provider: 'paragon_pic';
+  mls_provider: 'paragon';
   mls_dataset_id: string;
   mls_listing_key: string;
   mls_listing_id: string | null;
@@ -152,7 +152,7 @@ export function mapParagonPropertyToHouseProfile(
 
   return {
     source: 'paragon_test',
-    mls_provider: 'paragon_pic',
+    mls_provider: 'paragon',
     mls_dataset_id: datasetId,
     mls_listing_key: listingKey,
     mls_listing_id: stringValue(row.ListingId),

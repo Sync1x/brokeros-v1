@@ -6,7 +6,7 @@ import { Icons } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { StatusPill } from '@/components/brokeros/status-pill';
-import { houseProfilesQueryOptions } from '@/features/listings/api/queries';
+import { houseProfilesKeys, houseProfilesQueryOptions } from '@/features/listings/api/queries';
 import type { BrokerListingApiData, ListingStatus } from '@/features/listings/api/types';
 import {
   Dialog,
@@ -18,7 +18,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { humanizeKey, humanizeList } from '@/lib/vocabulary/display';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 interface HomeProfile {
   id: string;
@@ -54,6 +54,45 @@ interface HomeProfile {
   upgrades: string;
   sellerDescription: string;
   agentNotes: string;
+}
+
+interface ParagonSyncResult {
+  fetched: number;
+  mapped: number;
+  upserted: number;
+  error?: string;
+}
+
+function numberResult(value: unknown) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
+}
+
+async function parseSyncResponse(response: Response) {
+  const contentType = response.headers.get('content-type') ?? '';
+  const text = await response.text();
+
+  if (!contentType.includes('application/json')) {
+    throw new Error(`Sync returned ${response.status}: ${text.replace(/\s+/g, ' ').slice(0, 160)}`);
+  }
+
+  const data = JSON.parse(text) as {
+    fetched?: unknown;
+    mapped?: unknown;
+    upserted?: unknown;
+    error?: unknown;
+  };
+
+  if (!response.ok) {
+    throw new Error(
+      typeof data.error === 'string' ? data.error : 'Unable to sync Paragon listings.'
+    );
+  }
+
+  return {
+    fetched: numberResult(data.fetched),
+    mapped: numberResult(data.mapped),
+    upserted: numberResult(data.upserted)
+  };
 }
 
 function splitFeatureList(value: string) {
@@ -382,8 +421,11 @@ function RecentHomesRail({
 }
 
 export function ListingsWorkspace() {
+  const queryClient = useQueryClient();
   const houseProfilesQuery = useQuery(houseProfilesQueryOptions());
   const [selectedHome, setSelectedHome] = useState<HomeProfile | null>(null);
+  const [syncResult, setSyncResult] = useState<ParagonSyncResult | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const homes = useMemo(
     () => (houseProfilesQuery.data?.houseProfiles ?? []).map(mapListingToHomeProfile),
@@ -398,6 +440,31 @@ export function ListingsWorkspace() {
     houseProfilesQuery.error instanceof Error
       ? houseProfilesQuery.error.message
       : 'Unable to load house profiles.';
+
+  async function syncParagonListings() {
+    setIsSyncing(true);
+    setSyncResult(null);
+
+    try {
+      const response = await fetch('/api/mls/paragon/sync', {
+        method: 'POST',
+        credentials: 'same-origin'
+      });
+      const result = await parseSyncResponse(response);
+      setSyncResult(result);
+      await queryClient.invalidateQueries({ queryKey: houseProfilesKeys.all });
+      await houseProfilesQuery.refetch();
+    } catch (syncError) {
+      setSyncResult({
+        fetched: 0,
+        mapped: 0,
+        upserted: 0,
+        error: syncError instanceof Error ? syncError.message : 'Unable to sync Paragon listings.'
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  }
 
   return (
     <PageContainer pageTitle={`Active Listings: ${homes.length}`}>
@@ -414,6 +481,29 @@ export function ListingsWorkspace() {
               {homes.length} total
             </Badge>
           </div>
+          {syncResult ? (
+            <div className='border-b px-4 py-3 text-sm'>
+              {syncResult.error ? (
+                <p className='text-destructive font-medium'>{syncResult.error}</p>
+              ) : (
+                <p className='text-muted-foreground'>
+                  Paragon sync complete: fetched{' '}
+                  <span className='font-medium text-foreground tabular-nums'>
+                    {syncResult.fetched}
+                  </span>
+                  , mapped{' '}
+                  <span className='font-medium text-foreground tabular-nums'>
+                    {syncResult.mapped}
+                  </span>
+                  , upserted{' '}
+                  <span className='font-medium text-foreground tabular-nums'>
+                    {syncResult.upserted}
+                  </span>
+                  .
+                </p>
+              )}
+            </div>
+          ) : null}
           {houseProfilesQuery.isPending ? (
             <div className='flex min-h-80 flex-col items-center justify-center px-4 text-center'>
               <div className='bg-muted mb-4 flex size-12 items-center justify-center rounded-md'>
@@ -450,6 +540,15 @@ export function ListingsWorkspace() {
               <p className='text-muted-foreground mt-1 max-w-sm text-sm'>
                 No Paragon test listings synced yet.
               </p>
+              {/* Temporary testing control. Move this to an admin/settings data sync surface later. */}
+              <Button
+                className='mt-4'
+                size='sm'
+                onClick={() => void syncParagonListings()}
+                isLoading={isSyncing}
+              >
+                Sync Paragon Test Listings
+              </Button>
             </div>
           )}
         </main>
